@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>場勘數據報告 - EventScout</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Truss 架構圖 - EventScout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'], } } } }
@@ -11,26 +11,25 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    body { -webkit-tap-highlight-color: transparent; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
-    @media print {
-      .print\:hidden { display: none !important; }
-      .print\:p-0 { padding: 0 !important; }
-      .print\:w-full { width: 100% !important; }
-      .print\:absolute { position: absolute !important; }
-      .print\:inset-0 { inset: 0 !important; }
-      .print-a4 { width: 210mm !important; min-height: 297mm !important; padding: 0 !important; box-shadow: none !important; }
+    canvas {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
   </style>
 </head>
 <body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef, useMemo } = React;
 
     function Icon({ name, className = "w-4 h-4" }) {
       const icons = {
@@ -43,26 +42,22 @@
         moon: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" /></svg>,
         menu: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>,
         x: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
-        printer: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>
+        download: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
+        sliders: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>,
+        palette: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg>,
+        calculator: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>,
+        cube: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>,
+        square: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
       };
       return icons[name] || null;
     }
 
-    function AppLayout({ activePage, children }) {
-      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+    function AppLayout({ activePage, children, theme, toggleTheme }) {
       const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-      useEffect(() => {
-        if (theme === 'dark') document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', theme);
-      }, [theme]);
-
-      const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
       return (
         <div className="flex h-screen bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
-          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-20 print:hidden transition-colors duration-300">
+          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-40 transition-colors duration-300">
             <button onClick={() => setIsSidebarOpen(true)} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
               <Icon name="menu" className="w-6 h-6" />
             </button>
@@ -75,9 +70,9 @@
             </button>
           </header>
 
-          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-30 transition-opacity duration-300" />}
+          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300" />}
 
-          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-40 transition-transform duration-300 print:hidden lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-50 transition-transform duration-300 print:hidden lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-6 flex items-center justify-between">
               <h1 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
                 <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-4 h-4 text-white" /></div>
@@ -102,7 +97,7 @@
             </div>
           </aside>
 
-          <main className="flex-1 overflow-y-auto relative pt-14 lg:pt-0 print:pt-0 print:w-full print:absolute print:inset-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
+          <main className="flex-1 flex flex-col relative pt-14 lg:pt-0 print:pt-0 print:w-full print:absolute print:inset-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
             {children}
           </main>
         </div>
@@ -117,167 +112,565 @@
       );
     }
 
-    function InputGroup({ label, name, value, onChange, type = "text" }) {
+    function InputGroup({ label, value, onChange, type = "text", min, max, step }) {
       return (
         <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">{label}</label>
-          <input type={type} name={name} value={value} onChange={onChange} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 transition-colors" />
+          <div className="flex justify-between text-xs mb-1.5">
+            <label className="text-slate-600 dark:text-slate-400 font-bold">{label}</label>
+            <span className="text-indigo-600 dark:text-indigo-400 font-mono font-medium">{value} {type === 'range' ? '' : ''}</span>
+          </div>
+          <input type={type} min={min} max={max} step={step} value={value} onChange={onChange} className={`w-full ${type === 'range' ? 'accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer' : 'bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 transition-colors'}`} />
         </div>
       );
     }
 
-    function TextAreaGroup({ label, name, value, onChange, rows = 2 }) {
-      return (
-        <div>
-          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">{label}</label>
-          <textarea name={name} value={value} onChange={onChange} rows={rows} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none text-slate-900 dark:text-slate-100 transition-colors" />
-        </div>
-      );
+    // 將 Hex 色碼轉為包含透明度的 RGBA (用於輔助線/陰影)
+    function adjustHexOpacity(hex, opacity) {
+      if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+        let c = hex.substring(1).split('');
+        if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+        c = '0x' + c.join('');
+        return 'rgba(' + [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',') + ',' + opacity + ')';
+      }
+      return hex;
     }
 
-    function InfoRow({ label, value }) {
+    function TrussApp({ theme }) {
+      const isDark = theme === 'dark';
+      const canvasRef = useRef(null);
+      const containerRef = useRef(null);
+
+      // UI 狀態 (響應式分頁切換)
+      const [mobileTab, setMobileTab] = useState('canvas'); // 'settings', 'canvas'
+      const [settingTab, setSettingTab] = useState('dim'); // 'dim', 'style', 'bom'
+
+      // 核心資料狀態
+      const [type, setType] = useState('stage'); // 'stage', 'photowall'
+      const [dim, setDim] = useState({ w: 12.0, h: 7.0, d: 6.0, deckH: 1.2, trussW: 0.4, steps: true });
+      const [media, setMedia] = useState({ type: 'led', w: 8.0, h: 4.0, y: 1.5, text: 'LIVE SHOW', subtext: 'STAGE VISUALIZER' });
+      const [visual, setVisual] = useState({ trussColor: '#94a3b8', screenBg: 'rgba(23, 37, 84, 0.75)', screenBorder: 'rgba(59, 130, 246, 0.8)', showDim: true, showGrid: true, notes: '1. 本結構建議搭設於平整堅實地面。\n2. 帆布若遇6級以上強風建議卸下以防傾覆。\n3. 配電與燈光音響控制需符合戶外防雨標準。' });
+      const [view, setView] = useState({ mode: 'iso', zoom: 1.0, panX: 0, panY: 0, rotX: -20 * Math.PI / 180, rotY: 45 * Math.PI / 180 });
+      const [prices, setPrices] = useState({ truss2m: 1200, truss1m: 800, corner: 1500, base: 1000, deck: 1600, step: 2500 });
+      
+      // 拖曳狀態 useRef 避免 re-render
+      const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, target: null });
+      const screenRectRef = useRef(null);
+
+      // 計算 BOM (物料清單)
+      const bom = useMemo(() => {
+        const beamL = dim.w - 2 * dim.trussW;
+        const colL = dim.h;
+        const getPieces = (l) => ({ p2: Math.floor(l / 2), p1: Math.ceil(l % 2) });
+        
+        const leftCol = getPieces(colL);
+        const rightCol = getPieces(colL);
+        const mainBeam = getPieces(beamL);
+        
+        const c2m = leftCol.p2 + rightCol.p2 + mainBeam.p2;
+        const c1m = leftCol.p1 + rightCol.p1 + mainBeam.p1;
+        const cCorners = 2;
+        const cBases = 2;
+        
+        let cDecks = 0, cSteps = 0;
+        if (type === 'stage') {
+          cDecks = Math.ceil((dim.w * dim.d) / 2);
+          cSteps = dim.steps ? (dim.deckH >= 1.2 ? 2 : 1) : 0;
+        } else {
+          cDecks = Math.max(2, Math.round(dim.w / 2) + 1); // 防風斜撐
+        }
+        
+        const total = (c2m * prices.truss2m) + (c1m * prices.truss1m) + (cCorners * prices.corner) + (cBases * prices.base) + (cDecks * prices.deck) + (cSteps * prices.step);
+        let hrs = ((c2m + c1m) * 0.22) + (cCorners + cBases) * 0.15 + 1.0;
+        if (type === 'stage') hrs += (cDecks * 0.09) + (cSteps * 0.4);
+        else hrs += (cDecks * 0.15);
+        
+        return { c2m, c1m, cCorners, cBases, cDecks, cSteps, total, hrs };
+      }, [dim, type, prices]);
+
+      // 畫布渲染核心
+      const drawCanvas = (isExport = false) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const container = containerRef.current;
+        
+        // 尺寸設定
+        let w, h, dpr;
+        if (isExport) {
+          w = 1920; h = 1080; dpr = 1;
+          canvas.width = w; canvas.height = h;
+        } else {
+          dpr = window.devicePixelRatio || 1;
+          w = container.clientWidth; h = container.clientHeight;
+          canvas.width = w * dpr; canvas.height = h * dpr;
+          canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+          ctx.scale(dpr, dpr);
+        }
+
+        // 背景清理
+        ctx.clearRect(0, 0, w, h);
+        if (isExport) {
+          ctx.fillStyle = '#ffffff';
+        } else {
+          ctx.fillStyle = isDark ? '#15151A' : '#F6F8F9';
+        }
+        ctx.fillRect(0, 0, w, h);
+
+        // 主題定義 (配合淺色/深色與匯出)
+        const t = {
+          grid: isExport ? '#f1f5f9' : (isDark ? 'rgba(30, 41, 59, 0.4)' : 'rgba(226, 232, 240, 0.8)'),
+          ground: isExport ? '#000000' : (isDark ? '#334155' : '#cbd5e1'),
+          truss: isExport ? '#000000' : visual.trussColor,
+          brace: isExport ? 'rgba(0,0,0,0.4)' : adjustHexOpacity(visual.trussColor, 0.6),
+          deckTop: isExport ? '#f8fafc' : (isDark ? '#1e293b' : '#f1f5f9'),
+          deckFront: isExport ? '#e2e8f0' : (isDark ? '#0f172a' : '#e2e8f0'),
+          deckSide: isExport ? '#cbd5e1' : (isDark ? '#111827' : '#cbd5e1'),
+          deckBorder: isExport ? '#000000' : (isDark ? '#475569' : '#94a3b8'),
+          dimCol: isExport ? '#000000' : '#4f46e5', // Indigo
+          dimLine: isExport ? 'rgba(0,0,0,0.4)' : 'rgba(79, 70, 229, 0.4)'
+        };
+
+        // ====== 2D 繪圖邏輯 ======
+        if (view.mode === 'front') {
+          const padding = isExport ? 120 : 60;
+          const totalW = dim.w + 3.0; const totalH = dim.h + 2.5;
+          const scale = Math.min((w - padding*2)/totalW, (h - padding*2)/totalH) * (isExport ? 1 : view.zoom);
+          const oX = w/2 + (isExport ? 0 : view.panX);
+          const oY = h - padding - (isExport ? 40 : 20) + (isExport ? 0 : view.panY);
+          
+          const toX = m => oX + m * scale;
+          const toY = m => oY - m * scale;
+          const toS = m => m * scale;
+
+          // 網格與地面
+          if (visual.showGrid && !isExport) {
+             ctx.strokeStyle = t.grid; ctx.lineWidth = 1;
+             for(let ix = oX % scale; ix < w; ix += scale) { ctx.beginPath(); ctx.moveTo(ix,0); ctx.lineTo(ix,h); ctx.stroke(); }
+             for(let iy = oY % scale; iy < h; iy += scale) { ctx.beginPath(); ctx.moveTo(0,iy); ctx.lineTo(w,iy); ctx.stroke(); }
+          }
+          ctx.strokeStyle = t.ground; ctx.lineWidth = isExport ? 3 : 2;
+          ctx.beginPath(); ctx.moveTo(0, oY); ctx.lineTo(w, oY); ctx.stroke();
+
+          // 媒體背板
+          if (media.type !== 'none') {
+            const sx = toX(-media.w/2), sy = toY(media.y + media.h), sw = toS(media.w), sh = toS(media.h);
+            screenRectRef.current = {x: sx, y: sy, w: sw, h: sh};
+            
+            ctx.save();
+            if(!isExport) { ctx.shadowColor = visual.screenBorder; ctx.shadowBlur = 10; }
+            ctx.fillStyle = isExport ? '#f1f5f9' : visual.screenBg;
+            ctx.fillRect(sx, sy, sw, sh);
+            ctx.restore();
+            
+            ctx.strokeStyle = isExport ? '#000000' : visual.screenBorder; ctx.lineWidth = 2;
+            ctx.strokeRect(sx, sy, sw, sh);
+
+            ctx.fillStyle = isExport ? '#000000' : '#ffffff';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `bold ${Math.max(14, toS(0.6))}px sans-serif`;
+            ctx.fillText(media.text, sx + sw/2, sy + sh/2 - toS(0.1));
+            ctx.fillStyle = isExport ? '#475569' : 'rgba(255,255,255,0.7)';
+            ctx.font = `${Math.max(10, toS(0.3))}px sans-serif`;
+            ctx.fillText(media.subtext, sx + sw/2, sy + sh/2 + toS(0.3));
+
+            // 綁繩
+            ctx.strokeStyle = isExport ? '#000' : (isDark ? '#64748b' : '#94a3b8'); ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(toX(-media.w/2 + 0.5), sy); ctx.lineTo(toX(-media.w/2 + 0.5), toY(dim.h - dim.trussW));
+            ctx.moveTo(toX(media.w/2 - 0.5), sy); ctx.lineTo(toX(media.w/2 - 0.5), toY(dim.h - dim.trussW));
+            ctx.stroke();
+          } else { screenRectRef.current = null; }
+
+          // 地台
+          const dx = toX(-dim.w/2), dy = toY(dim.deckH), dw = toS(dim.w), dh = toS(dim.deckH);
+          ctx.fillStyle = t.deckTop; ctx.fillRect(dx, dy, dw, dh);
+          ctx.strokeStyle = t.deckBorder; ctx.lineWidth = 2; ctx.strokeRect(dx, dy, dw, dh);
+          
+          if (type === 'stage') {
+            ctx.beginPath(); ctx.moveTo(toX(-dim.w/2 + 1.5), dy); ctx.lineTo(toX(-dim.w/2 + 1.5), dy + dh); ctx.stroke();
+            if (dim.steps) {
+              const stW = toS(1.6), stH = dh/3, stX = toX(0) - stW/2;
+              ctx.fillStyle = isExport ? '#fff' : (isDark ? '#0f172a' : '#f1f5f9');
+              for(let i=0; i<3; i++) {
+                const off = i * (stW/6), cw = stW - off*2, cy = oY - stH*(i+1);
+                ctx.fillRect(stX + off, cy, cw, stH); ctx.strokeRect(stX + off, cy, cw, stH);
+              }
+            }
+          }
+
+          // 桁架 Truss 繪製函數
+          const draw2DTruss = (tx, ty, tw, th, dir) => {
+            ctx.strokeStyle = t.truss; ctx.lineWidth = 1.5;
+            ctx.strokeRect(tx, ty, tw, th);
+            const segSize = Math.max(tw, th) * (0.8);
+            const num = Math.max(2, Math.round((dir==='v'?th:tw)/segSize));
+            const step = (dir==='v'?th:tw)/num;
+            ctx.strokeStyle = t.brace; ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=0; i<num; i++) {
+              if (dir==='v') {
+                ctx.moveTo(tx, ty+i*step); ctx.lineTo(tx+tw, ty+(i+1)*step);
+                ctx.moveTo(tx+tw, ty+i*step); ctx.lineTo(tx, ty+(i+1)*step);
+              } else {
+                ctx.moveTo(tx+i*step, ty); ctx.lineTo(tx+(i+1)*step, ty+th);
+                ctx.moveTo(tx+(i+1)*step, ty); ctx.lineTo(tx+i*step, ty+th);
+              }
+            }
+            ctx.stroke();
+          };
+
+          const colX1 = -dim.w/2 + dim.trussW/2, colX2 = dim.w/2 - dim.trussW/2;
+          draw2DTruss(toX(colX1 - dim.trussW/2), toY(dim.h), toS(dim.trussW), toS(dim.h), 'v');
+          draw2DTruss(toX(colX2 - dim.trussW/2), toY(dim.h), toS(dim.trussW), toS(dim.h), 'v');
+          draw2DTruss(toX(-dim.w/2), toY(dim.h), toS(dim.w), toS(dim.trussW), 'h');
+
+          // 底座
+          const bw = toS(dim.trussW*1.8), bh = toS(0.15);
+          ctx.fillStyle = isExport ? '#fff' : (isDark ? '#334155' : '#cbd5e1');
+          ctx.fillRect(toX(colX1) - bw/2, oY - bh, bw, bh); ctx.strokeRect(toX(colX1) - bw/2, oY - bh, bw, bh);
+          ctx.fillRect(toX(colX2) - bw/2, oY - bh, bw, bh); ctx.strokeRect(toX(colX2) - bw/2, oY - bh, bw, bh);
+
+          // 尺寸標註
+          if (visual.showDim) {
+            ctx.fillStyle = t.dimCol; ctx.strokeStyle = t.dimCol; ctx.font = `bold ${isExport?14:12}px sans-serif`;
+            const drawDim = (x1, y1, x2, y2, off, txt, isV) => {
+              ctx.beginPath(); ctx.strokeStyle = t.dimLine;
+              if(!isV) { ctx.moveTo(x1,y1); ctx.lineTo(x1, y1-off); ctx.moveTo(x2,y2); ctx.lineTo(x2,y2-off); ctx.stroke();
+                ctx.beginPath(); ctx.strokeStyle=t.dimCol; ctx.moveTo(x1,y1-off); ctx.lineTo(x2,y2-off); ctx.stroke();
+                ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(txt, (x1+x2)/2, y1-off-4);
+              } else {
+                ctx.moveTo(x1,y1); ctx.lineTo(x1+off, y1); ctx.moveTo(x2,y2); ctx.lineTo(x2+off,y2); ctx.stroke();
+                ctx.beginPath(); ctx.strokeStyle=t.dimCol; ctx.moveTo(x1+off,y1); ctx.lineTo(x2+off,y2); ctx.stroke();
+                ctx.save(); ctx.translate(x1+off+(off>0?14:-6), (y1+y2)/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText(txt,0,0); ctx.restore();
+              }
+            };
+            drawDim(toX(-dim.w/2), toY(dim.h+0.8), toX(dim.w/2), toY(dim.h+0.8), 20, `${dim.w}m (寬)`, false);
+            drawDim(toX(-dim.w/2-0.8), toY(0), toX(-dim.w/2-0.8), toY(dim.h), -20, `${dim.h}m (高)`, true);
+          }
+
+        } else {
+          // ====== 3D 立體投影 ======
+          const scale = (isExport ? 45 : Math.min(w,h)/25) * view.zoom;
+          const oX = w/2 + (isExport ? 0 : view.panX);
+          const oY = h/2 + (isExport ? 80 : h/6) + (isExport ? 0 : view.panY);
+          
+          const p3D = (x, y, z) => {
+            let x1 = x * Math.cos(view.rotY) - z * Math.sin(view.rotY);
+            let z1 = x * Math.sin(view.rotY) + z * Math.cos(view.rotY);
+            let y2 = y * Math.cos(view.rotX) - z1 * Math.sin(view.rotX);
+            let z2 = y * Math.sin(view.rotX) + z1 * Math.cos(view.rotX);
+            return { x: oX + x1 * scale, y: oY - y2 * scale, z: z2 };
+          };
+
+          if (visual.showGrid) {
+            ctx.strokeStyle = t.grid; ctx.lineWidth = 1;
+            for(let ox=-dim.w/2-2; ox<=dim.w/2+2; ox++) { let p1=p3D(ox,0,-dim.d/2-2), p2=p3D(ox,0,dim.d/2+2); ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke(); }
+            for(let oz=-dim.d/2-2; oz<=dim.d/2+2; oz++) { let p1=p3D(-dim.w/2-2,0,oz), p2=p3D(dim.w/2+2,0,oz); ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke(); }
+          }
+
+          const q = [];
+          
+          // 地台 3D
+          q.push({ z: 0, draw: () => {
+            const p1=p3D(-dim.w/2,0,-dim.d/2), p2=p3D(dim.w/2,0,-dim.d/2), p3=p3D(dim.w/2,0,dim.d/2), p4=p3D(-dim.w/2,0,dim.d/2);
+            const t1=p3D(-dim.w/2,dim.deckH,-dim.d/2), t2=p3D(dim.w/2,dim.deckH,-dim.d/2), t3=p3D(dim.w/2,dim.deckH,dim.d/2), t4=p3D(-dim.w/2,dim.deckH,dim.d/2);
+            ctx.strokeStyle=t.deckBorder; ctx.lineWidth=1.5;
+            ctx.fillStyle=t.deckTop; ctx.beginPath(); ctx.moveTo(t1.x,t1.y); ctx.lineTo(t2.x,t2.y); ctx.lineTo(t3.x,t3.y); ctx.lineTo(t4.x,t4.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle=t.deckFront; ctx.beginPath(); ctx.moveTo(p4.x,p4.y); ctx.lineTo(p3.x,p3.y); ctx.lineTo(t3.x,t3.y); ctx.lineTo(t4.x,t4.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle=t.deckSide; ctx.beginPath(); ctx.moveTo(p3.x,p3.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(t2.x,t2.y); ctx.lineTo(t3.x,t3.y); ctx.closePath(); ctx.fill(); ctx.stroke();
+          }});
+
+          // 桁架 3D (簡化線條繪製)
+          const draw3DTrussCol = (cx) => {
+            const tw = dim.trussW, zd = -dim.d/2;
+            const b1=p3D(cx-tw/2,0,zd-tw/2), b2=p3D(cx+tw/2,0,zd-tw/2), t1=p3D(cx-tw/2,dim.h,zd-tw/2), t2=p3D(cx+tw/2,dim.h,zd-tw/2);
+            ctx.strokeStyle=t.truss; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(b1.x,b1.y); ctx.lineTo(t1.x,t1.y); ctx.moveTo(b2.x,b2.y); ctx.lineTo(t2.x,t2.y); ctx.stroke();
+            ctx.strokeStyle=t.brace; ctx.lineWidth=1;
+            const seg=Math.max(3,Math.round(dim.h/1.2));
+            ctx.beginPath();
+            for(let i=0;i<seg;i++){
+              let cy1=i/seg*dim.h, cy2=(i+1)/seg*dim.h;
+              let pt1=p3D(cx-tw/2,cy1,zd-tw/2), pt2=p3D(cx+tw/2,cy2,zd-tw/2), pt3=p3D(cx+tw/2,cy1,zd-tw/2), pt4=p3D(cx-tw/2,cy2,zd-tw/2);
+              ctx.moveTo(pt1.x,pt1.y); ctx.lineTo(pt2.x,pt2.y); ctx.moveTo(pt3.x,pt3.y); ctx.lineTo(pt4.x,pt4.y);
+            }
+            ctx.stroke();
+          };
+          q.push({ z:-1, draw: () => { draw3DTrussCol(-dim.w/2+dim.trussW/2); draw3DTrussCol(dim.w/2-dim.trussW/2); }});
+
+          // 頂樑 3D
+          q.push({ z: 1, draw: () => {
+            const tw = dim.trussW, zd = -dim.d/2;
+            const l1=p3D(-dim.w/2,dim.h-tw,zd-tw/2), r1=p3D(dim.w/2,dim.h-tw,zd-tw/2), l2=p3D(-dim.w/2,dim.h,zd-tw/2), r2=p3D(dim.w/2,dim.h,zd-tw/2);
+            ctx.strokeStyle=t.truss; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(l1.x,l1.y); ctx.lineTo(r1.x,r1.y); ctx.moveTo(l2.x,l2.y); ctx.lineTo(r2.x,r2.y); ctx.stroke();
+            ctx.strokeStyle=t.brace; ctx.lineWidth=1;
+            const seg=Math.max(5,Math.round(dim.w/1.2));
+            ctx.beginPath();
+            for(let i=0;i<seg;i++){
+              let cx1=-dim.w/2 + (i/seg)*dim.w, cx2=-dim.w/2 + ((i+1)/seg)*dim.w;
+              let pt1=p3D(cx1,dim.h-tw,zd-tw/2), pt2=p3D(cx2,dim.h,zd-tw/2), pt3=p3D(cx2,dim.h-tw,zd-tw/2), pt4=p3D(cx1,dim.h,zd-tw/2);
+              ctx.moveTo(pt1.x,pt1.y); ctx.lineTo(pt2.x,pt2.y); ctx.moveTo(pt3.x,pt3.y); ctx.lineTo(pt4.x,pt4.y);
+            }
+            ctx.stroke();
+          }});
+
+          if (media.type !== 'none') {
+            q.push({ z: 2, draw: () => {
+              const sz = -dim.d/4;
+              const p1=p3D(-media.w/2, media.y, sz), p2=p3D(media.w/2, media.y, sz), p3=p3D(media.w/2, media.y+media.h, sz), p4=p3D(-media.w/2, media.y+media.h, sz);
+              ctx.strokeStyle=t.truss; ctx.lineWidth=1.5;
+              ctx.beginPath(); ctx.moveTo(p3D(-media.w/2+0.5,media.y+media.h,sz).x, p3D(-media.w/2+0.5,media.y+media.h,sz).y); ctx.lineTo(p3D(-media.w/2+0.5,dim.h-dim.trussW,sz).x, p3D(-media.w/2+0.5,dim.h-dim.trussW,sz).y); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(p3D(media.w/2-0.5,media.y+media.h,sz).x, p3D(media.w/2-0.5,media.y+media.h,sz).y); ctx.lineTo(p3D(media.w/2-0.5,dim.h-dim.trussW,sz).x, p3D(media.w/2-0.5,dim.h-dim.trussW,sz).y); ctx.stroke();
+              
+              ctx.fillStyle = isExport ? '#f1f5f9' : visual.screenBg;
+              ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.lineTo(p3.x,p3.y); ctx.lineTo(p4.x,p4.y); ctx.fill();
+              ctx.strokeStyle = isExport ? '#000' : visual.screenBorder; ctx.stroke();
+              
+              const center = p3D(0, media.y+media.h/2, sz);
+              ctx.fillStyle = isExport ? '#000' : '#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+              ctx.font = `bold ${Math.max(14, scale*0.5)}px sans-serif`; ctx.fillText(media.text, center.x, center.y - scale*0.1);
+            }});
+          }
+
+          q.sort((a,b) => b.z - a.z).forEach(item => item.draw());
+        }
+      };
+
+      // 監聽依賴變更與視窗大小，重新繪製
+      useEffect(() => {
+        drawCanvas(false);
+        const handleResize = () => drawCanvas(false);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, [dim, media, visual, view, type, theme, mobileTab]);
+
+      // 滑鼠與觸控拖曳邏輯
+      const handleStart = (clientX, clientY) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        dragRef.current = { isDragging: true, startX: clientX - rect.left, startY: clientY - rect.top, target: null };
+        if (view.mode === 'front' && media.type !== 'none' && screenRectRef.current) {
+          const { x, y, w, h } = screenRectRef.current;
+          if (dragRef.current.startX >= x && dragRef.current.startX <= x + w && dragRef.current.startY >= y && dragRef.current.startY <= y + h) {
+            dragRef.current.target = 'screen'; return;
+          }
+        }
+        dragRef.current.target = view.mode === 'front' ? 'pan' : 'rotate';
+      };
+      
+      const handleMove = (clientX, clientY) => {
+        if (!dragRef.current.isDragging) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mx = clientX - rect.left, my = clientY - rect.top;
+        const dx = mx - dragRef.current.startX, dy = my - dragRef.current.startY;
+        
+        if (dragRef.current.target === 'screen') {
+           const scale = Math.min((rect.width - 120)/(dim.w+3), (rect.height - 120)/(dim.h+2.5)) * view.zoom;
+           let newY = media.y - dy / scale;
+           newY = Math.max(type === 'stage' ? dim.deckH : 0.1, Math.min(dim.h - media.h - dim.trussW, newY));
+           setMedia(m => ({...m, y: newY}));
+        } else if (dragRef.current.target === 'pan') {
+           setView(v => ({...v, panX: v.panX + dx, panY: v.panY + dy}));
+        } else if (dragRef.current.target === 'rotate') {
+           setView(v => ({
+             ...v, 
+             rotY: v.rotY + dx * 0.01, 
+             rotX: Math.max(-80*Math.PI/180, Math.min(10*Math.PI/180, v.rotX + dy * 0.01))
+           }));
+        }
+        dragRef.current.startX = mx; dragRef.current.startY = my;
+      };
+
+      const handleEnd = () => dragRef.current.isDragging = false;
+
+      // 匯出藍圖
+      const exportBlueprint = () => {
+        drawCanvas(true);
+        const canvas = canvasRef.current;
+        const expCanvas = document.createElement('canvas');
+        expCanvas.width = 1920; expCanvas.height = 1080;
+        const ctx = expCanvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1920,1080);
+        ctx.drawImage(canvas, 0, 0, 1920, 1080, 0, -100, 1920, 1080); // 畫部署向上偏移留出底部資料框空間
+        
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(30, 30, 1860, 1020);
+        ctx.strokeRect(30, 750, 1860, 300);
+        ctx.beginPath(); ctx.moveTo(580, 750); ctx.lineTo(580, 1050); ctx.moveTo(1140, 750); ctx.lineTo(1140, 1050); ctx.stroke();
+
+        ctx.fillStyle = '#000'; ctx.font = "bold 26px 'Noto Sans TC'";
+        ctx.fillText(type === 'stage' ? '專業舞台系統結構施工藍圖' : '視覺宣傳打卡牆結構施工藍圖', 50, 790);
+        ctx.font = "16px 'Noto Sans TC'"; ctx.fillStyle = '#444';
+        ctx.fillText("設計單位：場地與舞台規劃組", 50, 850);
+        ctx.fillText("軟體版本：EventScout v4.3", 50, 880);
+        
+        ctx.fillStyle = '#000'; ctx.font = "bold 18px 'Noto Sans TC'";
+        ctx.fillText("📊 結構與設備規格明細：", 610, 790);
+        ctx.font = "15px 'Noto Sans TC'"; ctx.fillStyle = '#333';
+        ctx.fillText(`• 結構：寬度 ${dim.w.toFixed(2)}m x 高度 ${dim.h.toFixed(2)}m x 深度 ${dim.d.toFixed(2)}m`, 610, 840);
+        ctx.fillText(`• 視覺：${media.type==='led'?'LED 螢幕':'帆布輸出'} (寬 ${media.w.toFixed(2)}m x 高 ${media.h.toFixed(2)}m, 離地 ${media.y.toFixed(2)}m)`, 610, 875);
+        ctx.fillText(`• 舞台地台高度：${dim.deckH.toFixed(2)}m`, 610, 910);
+
+        ctx.fillStyle = '#000'; ctx.font = "bold 18px 'Noto Sans TC'";
+        ctx.fillText("📝 現場備註與安全指引：", 1170, 790);
+        ctx.font = "15px 'Noto Sans TC'"; ctx.fillStyle = '#444';
+        const lines = visual.notes.split('\n');
+        lines.forEach((l, i) => ctx.fillText(l, 1170, 840 + i * 25));
+
+        const dataURL = expCanvas.toDataURL('image/png');
+        const link = document.createElement('a'); link.download = `Blueprint_${Date.now()}.png`; link.href = dataURL; link.click();
+        
+        // 恢復正常畫布
+        drawCanvas(false);
+      };
+
       return (
-        <div className="flex border-b border-slate-200 pb-2">
-          <span className="text-slate-500 w-20 font-medium shrink-0 text-xs sm:text-sm">{label}</span>
-          <span className="text-slate-900 font-semibold text-xs sm:text-sm truncate">{value || '-'}</span>
-        </div>
-      );
-    }
-
-    function DetailItem({ label, value }) {
-      return (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-slate-500 font-bold text-[11px] uppercase tracking-wider">{label}</span>
-          <span className="text-slate-900 font-medium whitespace-pre-wrap text-xs sm:text-sm">{value || '-'}</span>
-        </div>
-      );
-    }
-
-    function SectionBox({ title, children }) {
-      return (
-        <div className="border border-slate-300 rounded-lg overflow-hidden">
-          <div className="px-4 py-2 bg-slate-100 border-b border-slate-300"><h3 className="font-bold text-slate-800 text-xs sm:text-sm">{title}</h3></div>
-          <div className="p-4 sm:p-5">{children}</div>
-        </div>
-      );
-    }
-
-    function ReportApp() {
-      const [report, setReport] = useState({
-        projectName: '2026 年度品牌發表會', surveyDate: new Date().toISOString().split('T')[0], eventDate: '2026-06-15',
-        venueName: '國際展覽中心 A館', venueAddress: '台北市信義區...', contactInfo: '王經理 0912-345-678',
-        areaSize: '約 150 坪', ceilingHeight: '4.5 公尺', lowestPoint: '3.8 公尺 (空調管線/灑水頭)',
-        loadingDock: '地下室 B1 卸貨區，限高 2.5m', elevatorSize: '門寬 1.2m / 內寬 2m x 深 3m x 高 2.5m',
-        walkwayWidth: '走道最窄處 1.5m', power110V: '壁面四周共 8 組雙孔插座 (15A)',
-        power220V_380V: '舞台左後方有 380V 動力電箱 (需配置專業技師接電)', network: '場地提供付費 Wi-Fi；4G/5G 收訊佳',
-        lighting: '基本堪用，為黃光 (3000K) 軌道燈', floorMaterial: '大理石地磚 (全區施工需鋪設保護板)',
-        wallMaterial: '漆面牆 (嚴禁使用雙面膠，僅可使用無痕膠帶)', timeRestriction: '進場: 22:00 後 / 撤場: 12:00 前',
-        fireSafety: '滅火器 4 支，逃生門 2 處 (周邊嚴禁堆放雜物)', otherNotes: '1. 施工人員需配戴工作證、著反光背心。\n2. 場內全面禁菸飲食。'
-      });
-
-      const handleChange = (e) => setReport(prev => ({ ...prev, [e.target.name]: e.target.value }));
-
-      return (
-        <div className="h-full flex flex-col animate-in fade-in print:p-0 transition-colors">
-          <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex flex-col sm:flex-row justify-between sm:items-center gap-3 shrink-0 print:hidden text-slate-900 dark:text-white">
-            <h2 className="text-xl font-bold flex items-center gap-2"><Icon name="fileText" className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> 場勘數據報告匯出</h2>
-            <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 shadow-sm transition-colors text-sm">
-              <Icon name="printer" /> 列印 / 存為 PDF
-            </button>
+        <div className="h-full flex flex-col animate-in fade-in transition-colors">
+          {/* Header */}
+          <div className="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Icon name="box" className="text-indigo-600 dark:text-indigo-400" /> Truss 結構繪圖與估算系統</h2>
+            </div>
+            <button onClick={exportBlueprint} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition w-full sm:w-auto justify-center"><Icon name="download" /> 匯出工程藍圖</button>
           </div>
 
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0 print:block">
-            <div className="w-full lg:w-[40%] bg-white dark:bg-[#202024] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 overflow-y-auto print:hidden custom-scrollbar shrink-0">
-              <div className="p-6 space-y-8">
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">1. 基本資訊</h4>
-                  <InputGroup label="專案/活動名稱" name="projectName" value={report.projectName} onChange={handleChange} />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InputGroup label="場勘日期" name="surveyDate" type="date" value={report.surveyDate} onChange={handleChange} /><InputGroup label="預定活動日期" name="eventDate" type="date" value={report.eventDate} onChange={handleChange} /></div>
-                  <InputGroup label="場地名稱" name="venueName" value={report.venueName} onChange={handleChange} />
-                  <InputGroup label="場地地址" name="venueAddress" value={report.venueAddress} onChange={handleChange} />
-                  <InputGroup label="場地聯絡人/電話" name="contactInfo" value={report.contactInfo} onChange={handleChange} />
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700/50"></div>
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">2. 空間與進撤場動線</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InputGroup label="預估面積/坪數" name="areaSize" value={report.areaSize} onChange={handleChange} /><InputGroup label="天花板淨高" name="ceilingHeight" value={report.ceilingHeight} onChange={handleChange} /></div>
-                  <InputGroup label="最低障礙物高度" name="lowestPoint" value={report.lowestPoint} onChange={handleChange} />
-                  <TextAreaGroup label="卸貨區位置與限高" name="loadingDock" value={report.loadingDock} onChange={handleChange} />
-                  <TextAreaGroup label="進場電梯尺寸" name="elevatorSize" value={report.elevatorSize} onChange={handleChange} />
-                  <InputGroup label="動線最窄處寬度" name="walkwayWidth" value={report.walkwayWidth} onChange={handleChange} />
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700/50"></div>
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">3. 機電與網路設備</h4>
-                  <TextAreaGroup label="一般插座 (110V)" name="power110V" value={report.power110V} onChange={handleChange} />
-                  <TextAreaGroup label="動力電箱 (220V/380V)" name="power220V_380V" value={report.power220V_380V} onChange={handleChange} />
-                  <InputGroup label="場地燈光狀況" name="lighting" value={report.lighting} onChange={handleChange} />
-                  <InputGroup label="網路/收訊狀況" name="network" value={report.network} onChange={handleChange} />
-                </div>
-                <div className="h-px bg-slate-200 dark:bg-slate-700/50"></div>
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">4. 場地規範與安全</h4>
-                  <InputGroup label="地板材質 (保護板規範)" name="floorMaterial" value={report.floorMaterial} onChange={handleChange} />
-                  <InputGroup label="牆面材質 (黏貼規範)" name="wallMaterial" value={report.wallMaterial} onChange={handleChange} />
-                  <InputGroup label="進撤場時間限制" name="timeRestriction" value={report.timeRestriction} onChange={handleChange} />
-                  <InputGroup label="消防設施位置" name="fireSafety" value={report.fireSafety} onChange={handleChange} />
-                  <TextAreaGroup label="補充備註事項" name="otherNotes" value={report.otherNotes} onChange={handleChange} rows={3} />
-                </div>
+          {/* 行動版分頁列 */}
+          <div className="lg:hidden bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex gap-1 shrink-0">
+            <button onClick={() => setMobileTab('settings')} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all border ${mobileTab==='settings'?'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30':'border-transparent text-slate-500 dark:text-slate-400'}`}>參數設定</button>
+            <button onClick={() => setMobileTab('canvas')} className={`flex-1 py-2 rounded-md text-xs font-bold transition-all border ${mobileTab==='canvas'?'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30':'border-transparent text-slate-500 dark:text-slate-400'}`}>3D / 2D 畫布</button>
+          </div>
+
+          <div className="flex flex-1 min-h-0 overflow-hidden" ref={containerRef}>
+            {/* 左側參數面板 */}
+            <div className={`w-full lg:w-[320px] bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-10 ${mobileTab === 'settings' ? 'flex' : 'hidden lg:flex'}`}>
+              <div className="flex border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <button onClick={() => setSettingTab('dim')} className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 border-b-2 ${settingTab==='dim'?'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-800/50':'border-transparent text-slate-500'}`}><Icon name="sliders" />尺寸</button>
+                <button onClick={() => setSettingTab('style')} className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 border-b-2 ${settingTab==='style'?'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-800/50':'border-transparent text-slate-500'}`}><Icon name="palette" />視覺</button>
+                <button onClick={() => setSettingTab('bom')} className={`flex-1 py-3 text-xs font-bold flex flex-col items-center gap-1 border-b-2 ${settingTab==='bom'?'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-800/50':'border-transparent text-slate-500'}`}><Icon name="calculator" />預算</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+                {settingTab === 'dim' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">結構類型</label>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setType('stage'); setDim(d=>({...d, deckH:1.2})); }} className={`flex-1 py-2 rounded-md text-xs font-bold border transition ${type==='stage'?'bg-indigo-600 text-white border-indigo-600':'bg-white dark:bg-[#15151A] text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700'}`}>舞台系統</button>
+                        <button onClick={() => { setType('photowall'); setDim(d=>({...d, deckH:0.1})); setMedia(m=>({...m, y: Math.max(0.1, m.y)})); }} className={`flex-1 py-2 rounded-md text-xs font-bold border transition ${type==='photowall'?'bg-indigo-600 text-white border-indigo-600':'bg-white dark:bg-[#15151A] text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700'}`}>視覺牆系統</button>
+                      </div>
+                    </div>
+                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <InputGroup label="總寬度 (W)" type="range" min="5" max="24" step="0.5" value={dim.w} onChange={e=>setDim({...dim, w: parseFloat(e.target.value)})} />
+                      <InputGroup label="總高度 (H)" type="range" min="4" max="14" step="0.5" value={dim.h} onChange={e=>setDim({...dim, h: parseFloat(e.target.value)})} />
+                      {type === 'stage' && <InputGroup label="總深度 (D)" type="range" min="3" max="12" step="0.5" value={dim.d} onChange={e=>setDim({...dim, d: parseFloat(e.target.value)})} />}
+                    </div>
+                    {type === 'stage' && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <InputGroup label="舞台地台高度 (Sh)" type="range" min="0.4" max="2.4" step="0.1" value={dim.deckH} onChange={e=>setDim({...dim, deckH: parseFloat(e.target.value)})} />
+                        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"><input type="checkbox" checked={dim.steps} onChange={e=>setDim({...dim, steps: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500" /> 配置安全登台階梯</label>
+                      </div>
+                    )}
+                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">視覺媒體配置</label>
+                      <select value={media.type} onChange={e=>setMedia({...media, type: e.target.value})} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-4">
+                        <option value="led">LED 螢幕</option>
+                        <option value="canvas">大圖帆布輸出</option>
+                        <option value="none">無配置</option>
+                      </select>
+                      {media.type !== 'none' && (
+                        <>
+                          <InputGroup label="畫面寬度 (Sw)" type="range" min="3" max={Math.max(3, dim.w-1)} step="0.5" value={media.w} onChange={e=>setMedia({...media, w: parseFloat(e.target.value)})} />
+                          <InputGroup label="畫面高度 (Sh)" type="range" min="2" max={Math.max(2, dim.h-dim.deckH-0.8)} step="0.5" value={media.h} onChange={e=>setMedia({...media, h: parseFloat(e.target.value)})} />
+                          <InputGroup label="畫面離地高度 (Sy)" type="range" min={type==='stage'?dim.deckH:0.1} max={dim.h-media.h-dim.trussW} step="0.1" value={media.y} onChange={e=>setMedia({...media, y: parseFloat(e.target.value)})} />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {settingTab === 'style' && (
+                  <div className="space-y-6 animate-in fade-in">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">桁架顏色外觀</label>
+                      <div className="flex gap-2">
+                        {['#94a3b8', '#1e293b', '#f59e0b', '#6366f1'].map(c => (
+                          <button key={c} onClick={()=>setVisual({...visual, trussColor: c})} className={`w-8 h-8 rounded-md transition-transform ${visual.trussColor===c?'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110':'border border-slate-300 dark:border-slate-600'}`} style={{backgroundColor: c}}></button>
+                        ))}
+                      </div>
+                    </div>
+                    {media.type !== 'none' && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">螢幕背板氛圍色</label>
+                        <div className="flex gap-2">
+                          <button onClick={()=>setVisual({...visual, screenBg:'rgba(23, 37, 84, 0.75)', screenBorder:'rgba(59, 130, 246, 0.8)'})} className={`w-8 h-8 rounded-md border border-blue-500 bg-blue-900 transition-transform ${visual.screenBg.includes('23')?'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110':''}`}></button>
+                          <button onClick={()=>setVisual({...visual, screenBg:'rgba(46, 16, 101, 0.75)', screenBorder:'rgba(139, 92, 246, 0.8)'})} className={`w-8 h-8 rounded-md border border-purple-500 bg-purple-900 transition-transform ${visual.screenBg.includes('46')?'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110':''}`}></button>
+                          <button onClick={()=>setVisual({...visual, screenBg:'rgba(15, 23, 42, 0.9)', screenBorder:'rgba(71, 85, 105, 0.8)'})} className={`w-8 h-8 rounded-md border border-slate-500 bg-slate-900 transition-transform ${visual.screenBg.includes('15')?'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110':''}`}></button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                       <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"><input type="checkbox" checked={visual.showGrid} onChange={e=>setVisual({...visual, showGrid: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500" /> 顯示空間網格</label>
+                       <label className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"><input type="checkbox" checked={visual.showDim} onChange={e=>setVisual({...visual, showDim: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500" /> 顯示尺寸標註 (僅 2D 模式)</label>
+                    </div>
+                    {media.type !== 'none' && (
+                      <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <InputGroup label="螢幕大標題" value={media.text} onChange={e=>setMedia({...media, text: e.target.value})} />
+                        <InputGroup label="副標題" value={media.subtext} onChange={e=>setMedia({...media, subtext: e.target.value})} />
+                      </div>
+                    )}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">工程施工備註</label>
+                      <textarea rows="4" value={visual.notes} onChange={e=>setVisual({...visual, notes: e.target.value})} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono"></textarea>
+                    </div>
+                  </div>
+                )}
+                {settingTab === 'bom' && (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg">
+                      <h4 className="text-xs font-bold text-amber-700 dark:text-amber-500 mb-2">預估硬體預算</h4>
+                      <p className="text-xl font-mono font-bold text-amber-600 dark:text-amber-400">NT$ {bom.total.toLocaleString()}</p>
+                      <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70 mt-1">預估工時: {bom.hrs.toFixed(1)} hr</p>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        {n: '2米 直型桁架', q: bom.c2m, u: '支'}, {n: '1米 直型桁架', q: bom.c1m, u: '支'},
+                        {n: '六向轉角箱', q: bom.cCorners, u: '個'}, {n: '配重底座', q: bom.cBases, u: '個'},
+                        {n: type==='stage'?'舞台防滑板 (1x2m)':'A字防風後斜撐', q: bom.cDecks, u: type==='stage'?'片':'組'},
+                        {n: '安全上台階梯', q: bom.cSteps, u: '組', show: type==='stage'}
+                      ].filter(i=>i.show!==false).map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-800 rounded-md text-xs">
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{item.n}</span>
+                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{item.q} {item.u}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed italic mt-4">*此清單為依據結構自動估算，實際執行請依現場負載與廠商報價為主。</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex-1 bg-slate-200/50 dark:bg-[#15151A] overflow-y-auto flex justify-center p-4 sm:p-8 print:p-0 print:bg-white print:overflow-visible">
-              <div className="bg-white w-full max-w-3xl lg:w-[210mm] min-h-[297mm] shadow-lg print:shadow-none p-6 sm:p-12 print:p-0 text-slate-900 mx-auto font-sans print-a4">
-                <div className="border-b-2 border-slate-900 pb-4 mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between sm:items-end gap-2">
-                  <div><h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1 leading-tight">{report.projectName}</h1><h2 className="text-base sm:text-lg font-semibold text-slate-500 tracking-wide">場地勘查檢核報告</h2></div>
-                  <div className="text-left sm:text-right text-xs text-slate-500 shrink-0"><p>勘查日期：{report.surveyDate}</p><p>列印日期：{new Date().toLocaleDateString()}</p></div>
+            {/* 右側 畫布區域 */}
+            <div className={`flex-1 flex flex-col bg-slate-100 dark:bg-[#0f172a] relative ${mobileTab === 'canvas' ? 'flex' : 'hidden lg:flex'}`}>
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
+                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-lg p-1 flex gap-1 pointer-events-auto shadow-sm">
+                  <button onClick={() => setView({...view, mode: 'front'})} className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${view.mode==='front'?'bg-indigo-600 text-white':'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon name="square" /> 2D 前視</button>
+                  <button onClick={() => setView({...view, mode: 'iso'})} className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 ${view.mode==='iso'?'bg-indigo-600 text-white':'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon name="cube" /> 3D 立體</button>
                 </div>
-
-                <div className="mb-6 sm:mb-8 p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-md">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                    <InfoRow label="活動日期" value={report.eventDate} /><InfoRow label="場地聯絡" value={report.contactInfo} />
-                    <InfoRow label="場地名稱" value={report.venueName} />
-                    <div className="sm:col-span-2"><InfoRow label="場地地址" value={report.venueAddress} /></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  <SectionBox title="空間與進撤場動線">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-sm">
-                      <DetailItem label="預估面積" value={report.areaSize} /><DetailItem label="天花板淨高" value={report.ceilingHeight} />
-                      <DetailItem label="最低障礙物" value={report.lowestPoint} /><DetailItem label="動線最窄處" value={report.walkwayWidth} />
-                      <div className="sm:col-span-2"><DetailItem label="卸貨區資訊" value={report.loadingDock} /></div>
-                      <div className="sm:col-span-2"><DetailItem label="電梯尺寸限制" value={report.elevatorSize} /></div>
-                    </div>
-                  </SectionBox>
-
-                  <SectionBox title="機電、網路與視聽">
-                    <div className="space-y-5 text-sm">
-                      <DetailItem label="一般插座 (110V)" value={report.power110V} />
-                      <DetailItem label="動力電箱 (220/380V)" value={report.power220V_380V} />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8"><DetailItem label="現場燈光" value={report.lighting} /><DetailItem label="網路狀況" value={report.network} /></div>
-                    </div>
-                  </SectionBox>
-
-                  <SectionBox title="場地規範與安全防護">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 text-sm">
-                      <DetailItem label="地板防護" value={report.floorMaterial} /><DetailItem label="牆面黏貼" value={report.wallMaterial} />
-                      <div className="sm:col-span-2"><DetailItem label="進撤場時間限制" value={report.timeRestriction} /></div>
-                      <div className="sm:col-span-2"><DetailItem label="消防與逃生設施" value={report.fireSafety} /></div>
-                    </div>
-                  </SectionBox>
-
-                  <div className="mt-2">
-                    <h3 className="text-sm font-bold text-slate-800 mb-2 border-l-2 border-slate-400 pl-2">補充備註事項</h3>
-                    <div className="text-sm text-slate-700 whitespace-pre-wrap pl-3 leading-relaxed">{report.otherNotes || '無'}</div>
-                  </div>
-                </div>
-
-                <div className="mt-12 sm:mt-16 pt-8 flex justify-end gap-10 sm:gap-20 text-sm text-slate-600">
-                  <div className="text-center"><div className="w-24 sm:w-32 border-b border-slate-400 mb-2 h-8"></div><p>場勘人員簽名</p></div>
-                  <div className="text-center"><div className="w-24 sm:w-32 border-b border-slate-400 mb-2 h-8"></div><p>場地方確認</p></div>
+                <div className="text-[10px] text-slate-500 bg-white/80 dark:bg-slate-900/80 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 backdrop-blur pointer-events-auto">
+                  可使用滑鼠/觸控拖曳旋轉與縮放
                 </div>
               </div>
+
+              <canvas 
+                ref={canvasRef} 
+                onMouseDown={(e)=>handleStart(e.clientX, e.clientY)}
+                onMouseMove={(e)=>handleMove(e.clientX, e.clientY)}
+                onMouseUp={handleEnd} onMouseLeave={handleEnd}
+                onTouchStart={(e)=>{ e.preventDefault(); handleStart(e.touches[0].clientX, e.touches[0].clientY); }}
+                onTouchMove={(e)=>{ e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); }}
+                onTouchEnd={handleEnd}
+                onWheel={(e)=>{ e.preventDefault(); setView(v => ({...v, zoom: Math.max(0.3, Math.min(3, v.zoom * (e.deltaY>0?0.9:1.1)))})); }}
+                className={`w-full h-full cursor-grab active:cursor-grabbing block touch-none`}
+              ></canvas>
             </div>
           </div>
         </div>
@@ -285,7 +678,23 @@
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<AppLayout activePage="report"><ReportApp /></AppLayout>);
+    // Wrapper to inject theme state for dynamic redraw
+    function RootApp() {
+      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+      useEffect(() => {
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      }, [theme]);
+      const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+      
+      return (
+        <AppLayout activePage="truss" theme={theme} toggleTheme={toggleTheme}>
+          <TrussApp theme={theme} />
+        </AppLayout>
+      );
+    }
+    root.render(<RootApp />);
   </script>
 </body>
 </html>
