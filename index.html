@@ -1,1879 +1,1435 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業場勘回報與 PDF 產出系統</title>
-    <!-- Tailwind CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- FontAwesome 圖示 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- html2pdf.js 程式庫 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
-        
-        :root {
-            --sky-blue: #2BAFF2;
-            --cyan-highlight: #00DDFF;
-            --deep-dark: #05090E;
-            --pure-white: #FFFFFF;
-            --tint-bg: #F4F8FC; /* 微透輕藍的溫潤白底色 */
-        }
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Home, 
+  Box, 
+  Map as MapIcon, 
+  FileText, 
+  Download, 
+  Plus, 
+  Printer, 
+  Trash2, 
+  Move,
+  Settings,
+  ArrowRight,
+  CheckCircle2,
+  Sparkles,
+  PenTool,
+  RotateCcw,
+  MousePointer2,
+  Edit3,
+  // 新增元件庫需要的圖示
+  Presentation, Mic, Sofa, Users, Coffee, ClipboardList,
+  Store, Truck, Table, Disc, Umbrella, PanelTop,
+  Tent, Rainbow, Droplets, HeartPulse, TreePine,
+  Layers, Copy, LayoutGrid, Type
+} from 'lucide-react';
 
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: var(--tint-bg);
-            color: var(--deep-dark);
-        }
 
-        /* 提升移動端與長輩閱讀舒適度：輸入框優化 */
-        input[type="text"], input[type="date"], select, textarea {
-            font-size: 1rem !important;
-            padding: 12px 16px !important;
-            border-color: #cbd5e1 !important;
-            color: var(--deep-dark) !important;
-            background-color: var(--pure-white);
-            transition: all 0.2s ease;
-        }
+export default function EventScoutApp() {
+  const [activeTab, setActiveTab] = useState('home');
 
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--sky-blue) !important;
-            background-color: var(--pure-white);
-            box-shadow: 0 0 0 3px rgba(43, 175, 242, 0.2);
-            outline: none;
-        }
-
-        label {
-            font-size: 0.95rem !important;
-            font-weight: 700 !important;
-            color: var(--deep-dark) !important;
-            margin-bottom: 6px;
-        }
-
-        /* A4 紙張大小精準定義，確保 PDF 匯出無落差 */
-        .a4-page {
-            width: 210mm;
-            height: 297mm;
-            padding: 18mm 20mm;
-            margin: 0 auto;
-            background: var(--pure-white);
-            box-shadow: 0 10px 25px -5px rgba(5, 9, 14, 0.15), 0 8px 10px -6px rgba(5, 9, 14, 0.1);
-            box-sizing: border-box;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        /* 列印分頁控制 */
-        .page-break {
-            page-break-after: always;
-        }
-
-        /* 系統核心天空藍卡片 */
-        .sky-card {
-            background-color: var(--pure-white);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(5, 9, 14, 0.05), 0 2px 4px -1px rgba(5, 9, 14, 0.02);
-            border: 1px solid #e2e8f0;
-            padding: 26px;
-            transition: all 0.25s ease-in-out;
-        }
-
-        .sky-card:hover {
-            box-shadow: 0 10px 15px -3px rgba(43, 175, 242, 0.15);
-            border-color: var(--sky-blue);
-        }
-
-        /* 側欄與預覽滾動優化 */
-        @media (min-width: 1024px) {
-            .scroll-container {
-                max-height: calc(100vh - 110px);
-                overflow-y: auto;
-            }
-        }
-
-        /* 自訂美化滾動條 */
-        .scroll-container::-webkit-scrollbar {
-            width: 6px;
-        }
-        .scroll-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .scroll-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        .scroll-container::-webkit-scrollbar-thumb:hover {
-            background: var(--sky-blue);
-        }
-    </style>
-</head>
-<body class="antialiased">
-
-    <!-- 頂部導航列：高對比白底黑字 + 天空藍焦點飾條 -->
-    <header class="bg-white border-b-2 border-sky-400 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-[1550px] mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
-            <div class="flex items-center space-x-3.5">
-                <div class="p-2.5 rounded-xl text-white shadow-md" style="background-color: var(--deep-dark);">
-                    <i class="fa-solid fa-clipboard-list text-2xl" style="color: var(--cyan-highlight);"></i>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight" style="color: var(--deep-dark);">場勘智慧回報系統</h1>
-                    <p class="text-sm font-bold" style="color: var(--sky-blue);">無障礙高清配色版 • 一鍵產生高品質 A4 簡報</p>
-                </div>
-            </div>
-            <!-- 按鈕控制群：新增 Word 匯出選項 -->
-            <div class="flex flex-wrap items-center justify-center gap-3">
-                <button onclick="resetForm()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-base font-bold rounded-lg transition-all duration-200 border border-slate-300 shadow-sm">
-                    <i class="fa-solid fa-rotate mr-1.5"></i>重設表單
-                </button>
-                <button onclick="exportToWord()" class="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 text-base font-bold rounded-lg transition-all duration-200 border border-sky-300 shadow-sm flex items-center">
-                    <i class="fa-solid fa-file-word mr-1.5 text-lg" style="color: var(--sky-blue);"></i>匯出 Word 報告
-                </button>
-                <button onclick="exportToPDF()" class="px-5 py-2.5 text-white text-base font-bold rounded-lg transition-all duration-200 shadow-md flex items-center border hover:opacity-90" style="background-color: var(--deep-dark); border-color: var(--sky-blue);">
-                    <i class="fa-solid fa-file-pdf mr-1.5 text-lg" style="color: var(--cyan-highlight);"></i>匯出 A4 PDF 報告
-                </button>
-            </div>
+  return (
+    <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
+      {/* Sidebar - Hidden during printing */}
+      <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl print:hidden flex-shrink-0 z-20">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold tracking-wider flex items-center gap-2 text-blue-400">
+            <Settings className="w-6 h-6" />
+            EventScout
+          </h1>
+          <p className="text-xs text-slate-400 mt-2">場勘與佈置全方位工具</p>
         </div>
-    </header>
-
-    <!-- 通知提示 -->
-    <div id="toast" class="fixed top-24 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3" style="background-color: var(--deep-dark); border: 1px solid var(--sky-blue);">
-        <span id="toast-icon" class="text-lg" style="color: var(--cyan-highlight);"><i class="fa-solid fa-circle-check"></i></span>
-        <span id="toast-message" class="text-base font-bold">通知訊息</span>
-    </div>
-
-    <!-- 主體內容區 (雙欄佈局：1550px 寬版) -->
-    <main class="max-w-[1550px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <!-- 左側：控制表單區 (佔 5 欄) -->
-        <section class="lg:col-span-5 space-y-6 scroll-container pr-2">
-            
-            <!-- 0. 模板快速套用區 (深色高質感卡片，運用極黑與亮青) -->
-            <div class="rounded-xl shadow-lg p-6 border text-white" style="background-color: var(--deep-dark); border-color: var(--sky-blue);">
-                <div class="flex items-center space-x-2 pb-3 mb-3 border-b border-gray-700">
-                    <span class="text-xl" style="color: var(--cyan-highlight);"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                    <h2 class="text-lg font-bold">快速套用專業場勘模板</h2>
-                </div>
-                <p class="text-sm mb-4" style="color: var(--sky-blue);">請點選適合的活動場景，系統將為您自動展開並填入符合實務規格的檢核項目與專業數據：</p>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="loadTemplate('outdoor')" class="py-3 px-4 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 border border-sky-400/30 hover:border-sky-400 bg-white/5 hover:bg-white/10">
-                        🌲 戶外活動
-                    </button>
-                    <button onclick="loadTemplate('award')" class="py-3 px-4 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 border border-sky-400/30 hover:border-sky-400 bg-white/5 hover:bg-white/10">
-                        🏆 頒獎典禮
-                    </button>
-                    <button onclick="loadTemplate('forum')" class="py-3 px-4 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 border border-sky-400/30 hover:border-sky-400 bg-white/5 hover:bg-white/10">
-                        💬 論壇專屬
-                    </button>
-                    <button onclick="loadTemplate('market')" class="py-3 px-4 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 border border-sky-400/30 hover:border-sky-400 bg-white/5 hover:bg-white/10">
-                        🎪 市集專屬
-                    </button>
-                </div>
+        <nav className="flex-1 px-4 space-y-2">
+          <NavItem 
+            icon={<Home className="w-5 h-5" />} 
+            label="首頁介紹" 
+            isActive={activeTab === 'home'} 
+            onClick={() => setActiveTab('home')} 
+          />
+          <NavItem 
+            icon={<Box className="w-5 h-5" />} 
+            label="Truss 架構圖" 
+            isActive={activeTab === 'truss'} 
+            onClick={() => setActiveTab('truss')} 
+          />
+          <NavItem 
+            icon={<MapIcon className="w-5 h-5" />} 
+            label="平面圖繪製" 
+            isActive={activeTab === 'floorplan'} 
+            onClick={() => setActiveTab('floorplan')} 
+          />
+          <NavItem 
+            icon={<FileText className="w-5 h-5" />} 
+            label="場勘報告匯出" 
+            isActive={activeTab === 'report'} 
+            onClick={() => setActiveTab('report')} 
+          />
+        </nav>
+        
+        <div className="p-4 text-xs text-slate-500 text-center">
+          &copy; 2026 Event Planner Tool
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto relative print:w-full print:absolute print:inset-0 bg-slate-50">
+        {activeTab === 'home' && <HomeTab onNavigate={setActiveTab} />}
+        {activeTab === 'truss' && <TrussTab />}
+        {activeTab === 'floorplan' && <FloorPlanTab />}
+        {activeTab === 'report' && <ReportTab />}
+      </main>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, isActive, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isActive 
+          ? 'bg-blue-600 text-white shadow-md' 
+          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+      }`}
+    >
+      {icon}
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+}
+
+
+function HomeTab({ onNavigate }) {
+  return (
+    <div className="min-h-full bg-slate-50 overflow-y-auto pb-12 animate-in fade-in duration-500">
+      
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white pt-24 pb-32 px-8 relative overflow-hidden">
+        {/* Decorative background pattern */}
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }}></div>
+        
+        <div className="max-w-5xl mx-auto relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-sm font-medium mb-8 shadow-inner">
+            <Sparkles className="w-4 h-4" />
+            <span>全新上線！專為活動企劃與硬體廠商打造</span>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight leading-tight">
+            場勘與佈置的 <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+              全方位協助小幫手
+            </span>
+          </h1>
+          <p className="text-lg md:text-xl text-blue-100/80 max-w-2xl mx-auto mb-10 leading-relaxed">
+            無論是舞台設計、動線規劃還是硬體設備紀錄，EventScout 都能幫助您快速生成標準化圖面與報告，讓提案更專業、發包更準確。
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button onClick={() => onNavigate('truss')} className="bg-blue-500 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 text-lg group">
+              開始繪製結構圖
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button onClick={() => onNavigate('floorplan')} className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 rounded-xl font-bold hover:bg-white/20 transition-all shadow-lg flex items-center justify-center gap-2 text-lg">
+              <PenTool className="w-5 h-5" />
+              繪製動線平面圖
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <div className="max-w-6xl mx-auto px-8 -mt-20 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <FeatureCard 
+            icon={<Box className="w-8 h-8 text-blue-600" />}
+            title="Truss 架構與打卡牆"
+            description="快速生成打卡牆或舞台的 Truss 結構圖。輸入尺寸即可自動繪製，並匯出標準的白底黑線尺寸圖供廠商發包使用。"
+            onClick={() => onNavigate('truss')}
+            features={['自訂寬高與深度尺寸', '多種 Truss 規格選擇', '自動標註精確尺寸線']}
+          />
+          <FeatureCard 
+            icon={<MapIcon className="w-8 h-8 text-cyan-600" />}
+            title="動線與平面圖繪製"
+            description="自由拖曳物件元素（舞台、打卡牆、控台、帳篷等），輕鬆繪製專業的活動動線與平面配置圖，支援快速匯出。"
+            onClick={() => onNavigate('floorplan')}
+            features={['直覺式畫布拖曳操作', '豐富內建活動場地圖例', '網格對齊與比例尺參考']}
+          />
+          <FeatureCard 
+            icon={<FileText className="w-8 h-8 text-indigo-600" />}
+            title="場勘數據報告"
+            description="告別繁雜的紙本紀錄。標準化表單輸入場地數據（電力、網路、限高），一鍵生成專業的 A4 報告，方便回報客戶。"
+            onClick={() => onNavigate('report')}
+            features={['標準化實用欄位設計', '一鍵產出列印與 PDF', '專業且乾淨的排版版面']}
+          />
+        </div>
+      </div>
+
+      {/* Workflow / Value Proposition */}
+      <div className="max-w-5xl mx-auto px-8 mt-24 mb-12">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-extrabold text-slate-800 mb-4">為什麼選擇使用 EventScout？</h2>
+          <p className="text-slate-500 text-lg">專注解決活動從業人員的痛點，大幅提升前期籌備效率</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+          <div className="space-y-10">
+            <div className="flex gap-5">
+              <div className="flex-shrink-0 w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-extrabold text-xl shadow-inner">1</div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">純網頁端，免安裝隨開即用</h3>
+                <p className="text-slate-600 leading-relaxed">設計為純前端網頁應用程式，可輕鬆部署於個人網域或 Github Pages，跨平台跨裝置，隨時隨地開啟進行編輯與匯出。</p>
+              </div>
             </div>
-
-            <!-- 1. 基本資訊與場地類型 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-folder"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">1. 基本資訊與場地屬性</h2>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block">專案或活動名稱</label>
-                        <input type="text" id="input-project" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例如：2026 亞太青年永續科技高峰論壇">
-                    </div>
-                    <div>
-                        <label class="block">場地名稱與地址</label>
-                        <input type="text" id="input-location" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例如：台北國際會議中心 201會議廳">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block">場勘人員</label>
-                            <input type="text" id="input-surveyor" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="您的姓名">
-                        </div>
-                        <div>
-                            <label class="block">場勘日期</label>
-                            <input type="date" id="input-date" oninput="updatePreview()" class="w-full border rounded-lg text-base">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block">場地聯絡人資訊</label>
-                        <input type="text" id="input-contact" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例：王經理 (0912-345-678)">
-                    </div>
-                    
-                    <!-- 場地類型 -->
-                    <div>
-                        <label class="block mb-2">場地類型 (可複選)</label>
-                        <div class="grid grid-cols-2 gap-3 p-3 rounded-lg border border-slate-200" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="露天" onchange="updatePreview()"> <span>露天</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="活動空間" onchange="updatePreview()"> <span>活動空間</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="表演廳" onchange="updatePreview()"> <span>表演廳</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="倉庫" onchange="updatePreview()"> <span>倉庫</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="展覽館" onchange="updatePreview()"> <span>展覽館</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" class="type-checkbox h-5 w-5 rounded text-sky-500" value="宴會廳" onchange="updatePreview()"> <span>宴會廳</span></label>
-                        </div>
-                    </div>
-                </div>
+            <div className="flex gap-5">
+              <div className="flex-shrink-0 w-14 h-14 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600 font-extrabold text-xl shadow-inner">2</div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">專為硬體發包設計的圖面</h3>
+                <p className="text-slate-600 leading-relaxed">不再需要依賴昂貴且複雜的 CAD 軟體，簡單輸入數值即可產出帶有精確標示的「白底黑線」圖面，協力廠商一看就懂。</p>
+              </div>
             </div>
-
-            <!-- 2. 電力與硬體技術規格 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-layer-group"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">2. 空間與供配電技術規格</h2>
-                </div>
-                <div class="space-y-4">
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="block">可容人數</label>
-                            <input type="text" id="input-capacity-num" oninput="updatePreview()" class="w-full border rounded-lg text-base text-center" placeholder="300人">
-                        </div>
-                        <div>
-                            <label class="block">場地尺寸</label>
-                            <input type="text" id="input-dim" oninput="updatePreview()" class="w-full border rounded-lg text-base text-center" placeholder="30x15m">
-                        </div>
-                        <div>
-                            <label class="block">挑高(米)</label>
-                            <input type="text" id="input-height" oninput="updatePreview()" class="w-full border rounded-lg text-base text-center" placeholder="4.5m">
-                        </div>
-                    </div>
-
-                    <!-- 電力設備細部數據 -->
-                    <div class="p-4 rounded-xl border border-sky-100 space-y-3" style="background-color: var(--tint-bg);">
-                        <span class="text-base font-bold block" style="color: var(--deep-dark);"><i class="fa-solid fa-bolt mr-2" style="color: var(--sky-blue);"></i>供配電容量確認</span>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs uppercase mb-1">110V 總電量(A)</label>
-                                <input type="text" id="input-amp110" oninput="updatePreview()" class="w-full border border-slate-300 rounded-lg text-base" placeholder="如: 50A">
-                            </div>
-                            <div>
-                                <label class="block text-xs uppercase mb-1">220V 總電量(A)</label>
-                                <input type="text" id="input-amp220" oninput="updatePreview()" class="w-full border border-slate-300 rounded-lg text-base" placeholder="如: 100A">
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4 pt-1">
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" id="chk-no-extra-power" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>不須額外配電</span></label>
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" id="chk-use-generator" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>可用發電機</span></label>
-                        </div>
-                    </div>
-
-                    <!-- 電力確認事項 -->
-                    <div>
-                        <label class="block mb-2">電力與安全查核清單 (可多選)</label>
-                        <div class="grid grid-cols-1 gap-2 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-photo-panel" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已拍攝配電盤/箱現況</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-gen-loc" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>發電機確認擺放於室外通風處</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-license" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>確認配電廠商需具甲級電工執照</span></label>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block">電力與設備現況說明</label>
-                        <textarea id="input-power" oninput="updatePreview()" rows="2" class="w-full border border-slate-300 rounded-lg focus:outline-none text-base" placeholder="請填寫配電箱位置、延長線長度估算等詳細現況說明..."></textarea>
-                    </div>
-
-                    <!-- 舞台與音控 -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block">舞台規格尺寸</label>
-                            <input type="text" id="input-stage" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例: 8x4m, 需防滑保護">
-                        </div>
-                        <div>
-                            <label class="block">音控台位置</label>
-                            <input type="text" id="input-mixer-loc" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例: 舞台正對面後方">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block">打卡牆位置</label>
-                            <input type="text" id="input-backdrop" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例: 大廳入口處右側">
-                        </div>
-                        <div>
-                            <label class="block">攝影專區規劃</label>
-                            <input type="text" id="input-photo-area" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="例: 舞台中軸線後方">
-                        </div>
-                    </div>
-                </div>
+            <div className="flex gap-5">
+              <div className="flex-shrink-0 w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-extrabold text-xl shadow-inner">3</div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">一條龍的報告產出</h3>
+                <p className="text-slate-600 leading-relaxed">將場勘紀錄的電力、動線、注意事項統一整理，自動排版成客戶與團隊都能快速閱讀的精美 A4 報告書。</p>
+              </div>
             </div>
-
-            <!-- 3. 現場設備與進撤場規劃 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-truck-loading"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">3. 現場設備與物流規劃</h2>
-                </div>
-                <div class="space-y-4">
-                    <!-- 設備提供複選 -->
-                    <div>
-                        <label class="block mb-2">現場提供之硬體設備 (可多選)</label>
-                        <div class="grid grid-cols-2 gap-3 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="音響設備" onchange="updatePreview()"> <span>音響設備</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="投影設備" onchange="updatePreview()"> <span>投影設備</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="獨立舞台" onchange="updatePreview()"> <span>獨立舞台</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="舞台燈光" onchange="updatePreview()"> <span>舞台燈光</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="桌椅" onchange="updatePreview()"> <span>桌椅</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="equip-checkbox h-5 w-5 rounded" value="無線網路" onchange="updatePreview()"> <span>無線網路</span></label>
-                        </div>
-                    </div>
-
-                    <!-- 設備確認事項 -->
-                    <div>
-                        <label class="block mb-2">設備檢查確認清單</label>
-                        <div class="grid grid-cols-1 gap-2 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-audio-loc" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已拍下現場音控台位置</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-light-ctrl" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已確認燈光總控與切換方式</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-socket-loc" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已確認牆面與地插座位置</span></label>
-                        </div>
-                    </div>
-
-                    <!-- 進撤場參數 -->
-                    <div class="p-4 rounded-xl border border-slate-200 space-y-3" style="background-color: var(--tint-bg);">
-                        <span class="text-base font-bold block" style="color: var(--deep-dark);"><i class="fa-solid fa-route mr-2" style="color: var(--sky-blue);"></i>進撤場細節</span>
-                        <div class="flex items-center space-x-3">
-                            <label class="flex items-center space-x-2 text-base cursor-pointer font-bold"><input type="checkbox" id="chk-elevator" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>備有貨梯</span></label>
-                        </div>
-                        <div>
-                            <label class="block text-xs uppercase mb-1">指定卸貨區位置</label>
-                            <input type="text" id="input-unloading-zone" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="如: 西側大門旁專用大車道">
-                        </div>
-                        <div>
-                            <label class="block text-xs uppercase mb-1">卸貨管制與限制</label>
-                            <input type="text" id="input-time-control" oninput="updatePreview()" class="w-full border rounded-lg text-base" placeholder="如: 晚上 22:00 至 翌日 07:00 禁噪">
-                        </div>
-                    </div>
-
-                    <!-- 進撤場確認事項 -->
-                    <div>
-                        <label class="block mb-2">搬運動線檢核</label>
-                        <div class="grid grid-cols-1 gap-2 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-logistics-dist" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已實測卸貨點至會場之搬運距離</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-parking-grid" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>確認卸貨區當日有保留專用停車格</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" id="chk-elevator-dim" onchange="updatePreview()" class="h-5 w-5 rounded" style="color: var(--sky-blue);"> <span>已測量貨梯及現場各出入口高度寬度</span></label>
-                        </div>
-                    </div>
-                </div>
+          </div>
+          
+          {/* Mock UI Representation */}
+          <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 relative">
+            <div className="absolute -inset-2 bg-gradient-to-tr from-blue-400 to-cyan-300 rounded-[2rem] blur-xl opacity-20 -z-10"></div>
+            <div className="relative bg-slate-50 rounded-2xl p-5 border border-slate-200 shadow-inner">
+               <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-3">
+                 <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                 <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                 <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                 <div className="ml-2 text-xs font-semibold text-slate-400 tracking-wider">EventScout Workspace</div>
+               </div>
+               <div className="space-y-4">
+                 <div className="h-10 bg-white rounded-lg border border-slate-200 w-full flex items-center px-4 text-sm text-slate-500 shadow-sm">輸入背板寬度: 400 cm</div>
+                 <div className="h-10 bg-white rounded-lg border border-slate-200 w-full flex items-center px-4 text-sm text-slate-500 shadow-sm">輸入背板高度: 300 cm</div>
+                 <div className="h-40 bg-slate-100 rounded-lg w-full flex flex-col items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-300">
+                    <Box className="w-8 h-8 mb-2 opacity-50" />
+                    自動繪製結構圖面中...
+                 </div>
+                 <div className="h-12 bg-blue-600 hover:bg-blue-700 cursor-pointer transition-colors rounded-lg w-full flex items-center justify-center text-white text-sm font-bold shadow-md">
+                    <Download className="w-4 h-4 mr-2" />
+                    一鍵匯出發包圖面
+                 </div>
+               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-            <!-- 4. 基礎設施與安全防護 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-list-check"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">4. 基礎設施與合規防護</h2>
-                </div>
-                <div class="space-y-4">
-                    <!-- 電力、水、空調、網路評估選單 -->
-                    <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
-                        <span class="text-base font-bold">電力負荷評估</span>
-                        <select id="status-power" onchange="updatePreview()" class="border rounded-lg text-base focus:outline-none font-bold">
-                            <option value="良好">🟢 良好 (電力充裕)</option>
-                            <option value="普通">🟡 普通 (需拉延長線)</option>
-                            <option value="異常">🔴 有限制 (需租用發電機)</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
-                        <span class="text-base font-bold">給排水系統</span>
-                        <select id="status-water" onchange="updatePreview()" class="border rounded-lg text-base focus:outline-none font-bold">
-                            <option value="良好">🟢 良好 (給排水順暢)</option>
-                            <option value="普通">🟡 普通 (洗手水路較遠)</option>
-                            <option value="異常">🔴 有限制 (無給排水)</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
-                        <span class="text-base font-bold">空調與通風</span>
-                        <select id="status-air" onchange="updatePreview()" class="border rounded-lg text-base focus:outline-none font-bold">
-                            <option value="良好">🟢 良好 (冷房佳)</option>
-                            <option value="普通">🟡 普通 (稍有悶熱)</option>
-                            <option value="異常">🔴 有限制 (需加配水冷扇)</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5 border-b border-slate-100">
-                        <span class="text-base font-bold">行動通訊 Wi-Fi</span>
-                        <select id="status-net" onchange="updatePreview()" class="border rounded-lg text-base focus:outline-none font-bold">
-                            <option value="良好">🟢 良好 (5G滿格)</option>
-                            <option value="普通">🟡 普通 (角落訊號稍弱)</option>
-                            <option value="異常">🔴 有限制 (需備行動網卡)</option>
-                        </select>
-                    </div>
+function FeatureCard({ icon, title, description, onClick, features }) {
+  return (
+    <div 
+      onClick={onClick}
+      className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 hover:shadow-2xl hover:-translate-y-1 hover:border-blue-300 transition-all duration-300 cursor-pointer group flex flex-col h-full overflow-hidden"
+    >
+      <div className="p-8 flex-1 flex flex-col">
+        <div className="bg-slate-50 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-blue-50 group-hover:shadow-md transition-all duration-300">
+          {icon}
+        </div>
+        <h3 className="text-2xl font-bold mb-3 text-slate-800 group-hover:text-blue-600 transition-colors">{title}</h3>
+        <p className="text-slate-500 leading-relaxed text-sm mb-8 flex-1">{description}</p>
+        
+        <ul className="space-y-3 mt-auto border-t border-slate-100 pt-6">
+          {features.map((feat, idx) => (
+            <li key={idx} className="flex items-start gap-3 text-sm text-slate-600 font-medium">
+              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+              <span>{feat}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="bg-slate-50 px-8 py-5 border-t border-slate-100 flex items-center justify-between group-hover:bg-blue-50 transition-colors">
+        <span className="text-sm font-bold text-blue-600">立即體驗功能</span>
+        <ArrowRight className="w-5 h-5 text-blue-600 group-hover:translate-x-2 transition-transform" />
+      </div>
+    </div>
+  );
+}
 
-                    <!-- 安全檢核 -->
-                    <div class="pt-4 space-y-3">
-                        <label class="block mb-2">安全防災合規確認</label>
-                        <div class="space-y-3 p-4 rounded-xl border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-start space-x-3 cursor-pointer font-bold">
-                                <input type="checkbox" id="chk-fire" onchange="updatePreview()" class="mt-1 h-5 w-5 rounded" style="color: var(--sky-blue);" checked>
-                                <span>消防滅火器皆在有效期內且位置明確</span>
-                            </label>
-                            <label class="flex items-start space-x-3 cursor-pointer font-bold">
-                                <input type="checkbox" id="chk-exit" onchange="updatePreview()" class="mt-1 h-5 w-5 rounded" style="color: var(--sky-blue);" checked>
-                                <span>安全逃生出口與動線順暢，無遮擋</span>
-                            </label>
-                            <label class="flex items-start space-x-3 cursor-pointer font-bold">
-                                <input type="checkbox" id="chk-insurance" onchange="updatePreview()" class="mt-1 h-5 w-5 rounded" style="color: var(--sky-blue);" checked>
-                                <span>場地已投保有效之公共意外責任險</span>
-                            </label>
-                            <label class="flex items-start space-x-3 cursor-pointer font-bold">
-                                <input type="checkbox" id="chk-capacity" onchange="updatePreview()" class="mt-1 h-5 w-5 rounded" style="color: var(--sky-blue);">
-                                <span>現場備有容留人數管制與引導機制</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
+
+function TrussTab() {
+  const canvasRef = useRef(null);
+  const [params, setParams] = useState({
+    type: 'backdrop', // backdrop or stage
+    width: 400, // cm
+    height: 300, // cm
+    depth: 50,  // cm
+    thickness: 30 // truss thickness cm
+  });
+
+  // Function to draw the blueprint
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Setup high-res canvas
+    const width = 800;
+    const height = 600;
+    canvas.width = width * 2;
+    canvas.height = height * 2;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(2, 2);
+
+    // Clear background (White)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+
+    // Styling for blueprint (Black lines)
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // Calculate drawing scale to fit in canvas
+    const maxRealDim = Math.max(params.width, params.height);
+    const scale = 400 / maxRealDim; // Fit within 400px
+
+    const drawW = params.width * scale;
+    const drawH = params.height * scale;
+    const drawT = params.thickness * scale; // Truss visual thickness
+
+    const startX = cx - drawW / 2;
+    const startY = cy - drawH / 2;
+
+    // Helper: Draw a single straight truss segment (rectangle with zig-zag)
+    const drawTrussSegment = (x, y, w, h, isVertical) => {
+      ctx.strokeRect(x, y, w, h);
+      ctx.beginPath();
+      if (isVertical) {
+        const segments = Math.floor(h / drawT);
+        const step = h / segments;
+        for (let i = 0; i < segments; i++) {
+          ctx.moveTo(x, y + i * step);
+          ctx.lineTo(x + w, y + i * step + step / 2);
+          ctx.lineTo(x, y + (i + 1) * step);
+        }
+      } else {
+        const segments = Math.floor(w / drawT);
+        const step = w / segments;
+        for (let i = 0; i < segments; i++) {
+          ctx.moveTo(x + i * step, y);
+          ctx.lineTo(x + i * step + step / 2, y + h);
+          ctx.lineTo(x + (i + 1) * step, y);
+        }
+      }
+      ctx.stroke();
+    };
+
+    // Draw Structure based on type
+    if (params.type === 'backdrop') {
+      // Draw outer frame (Backdrop)
+      // Top
+      drawTrussSegment(startX, startY, drawW, drawT, false);
+      // Left
+      drawTrussSegment(startX, startY, drawT, drawH, true);
+      // Right
+      drawTrussSegment(startX + drawW - drawT, startY, drawT, drawH, true);
+      
+      // Canvas Inner Area Text
+      ctx.fillStyle = '#666666';
+      ctx.fillText('帆布/背板區域', cx, cy);
+      ctx.fillStyle = '#000000';
+
+    } else if (params.type === 'stage') {
+      // Stage with roof
+      // Roof truss
+      drawTrussSegment(startX, startY, drawW, drawT, false);
+      // Pillars
+      drawTrussSegment(startX, startY, drawT, drawH, true);
+      drawTrussSegment(startX + drawW - drawT, startY, drawT, drawH, true);
+      // Stage Base
+      ctx.strokeRect(startX - 20, startY + drawH - drawT, drawW + 40, drawT);
+      ctx.fillRect(startX - 20, startY + drawH - drawT, drawW + 40, drawT);
+      
+      ctx.fillStyle = '#666666';
+      ctx.fillText('舞台區域', cx, cy + drawH/4);
+      ctx.fillStyle = '#000000';
+    }
+
+    // Helper: Draw Dimension Line
+    const drawDimLine = (x1, y1, x2, y2, text, offset) => {
+      ctx.beginPath();
+      // Calculate normal vector for offset
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      const nx = -dy / len;
+      const ny = dx / len;
+      
+      const px1 = x1 + nx * offset;
+      const py1 = y1 + ny * offset;
+      const px2 = x2 + nx * offset;
+      const py2 = y2 + ny * offset;
+
+      // Draw main line
+      ctx.moveTo(px1, py1);
+      ctx.lineTo(px2, py2);
+      
+      // Draw tick marks
+      ctx.moveTo(px1 - nx * 5, py1 - ny * 5);
+      ctx.lineTo(px1 + nx * 5, py1 + ny * 5);
+      ctx.moveTo(px2 - nx * 5, py2 - ny * 5);
+      ctx.lineTo(px2 + nx * 5, py2 + ny * 5);
+      ctx.stroke();
+
+      // Draw text
+      ctx.save();
+      ctx.translate((px1+px2)/2 - nx*15, (py1+py2)/2 - ny*15);
+      if (Math.abs(dy) > Math.abs(dx)) {
+        ctx.rotate(-Math.PI/2);
+      }
+      ctx.fillStyle = '#000000';
+      ctx.fillText(text, 0, 5);
+      ctx.restore();
+    };
+
+    // Draw Dimensions
+    drawDimLine(startX, startY + drawH, startX + drawW, startY + drawH, `寬度: ${params.width} cm`, 40);
+    drawDimLine(startX, startY, startX, startY + drawH, `高度: ${params.height} cm`, 40);
+
+    // Title / Legend
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(params.type === 'backdrop' ? '打卡牆 Truss 結構圖' : '舞台 Truss 結構圖', 40, 50);
+    ctx.font = '14px sans-serif';
+    ctx.fillText(`總寬: ${params.width}cm | 總高: ${params.height}cm | 深度: ${params.depth}cm`, 40, 75);
+    ctx.fillText(`Truss 規格: ${params.thickness}x${params.thickness} cm`, 40, 95);
+    ctx.fillStyle = '#666666';
+    ctx.fillText('此圖面僅供示意與尺寸參考，請依現場實際狀況為主。', 40, 115);
+
+  }, [params]);
+
+  const handleExport = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `truss_blueprint_${params.width}x${params.height}.png`;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  return (
+    <div className="p-8 h-full flex flex-col animate-in fade-in">
+      <div className="mb-6 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">Truss 架構與打卡牆</h2>
+          <p className="text-gray-500 mt-2">設定尺寸後自動生成白底黑線的標準發包圖面。</p>
+        </div>
+        <button 
+          onClick={handleExport}
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
+        >
+          <Download className="w-4 h-4" /> 匯出圖面
+        </button>
+      </div>
+
+      <div className="flex gap-6 flex-1 min-h-0">
+        {/* Controls Panel */}
+        <div className="w-80 bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col gap-5 overflow-y-auto">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">結構類型</label>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setParams({...params, type: 'backdrop'})}
+                className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${params.type === 'backdrop' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
+                打卡牆/背板
+              </button>
+              <button 
+                onClick={() => setParams({...params, type: 'stage'})}
+                className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${params.type === 'stage' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
+                舞台主結構
+              </button>
             </div>
+          </div>
 
-            <!-- 5. 附加空間與環境限制 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-umbrella"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">5. 附加空間與環境限制</h2>
-                </div>
-                <div class="space-y-4">
-                    <!-- 附加空間 -->
-                    <div>
-                        <label class="block mb-2">可用附加空間 (可多選)</label>
-                        <div class="grid grid-cols-3 gap-3 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="extra-space-checkbox h-5 w-5 rounded" value="廁所" onchange="updatePreview()"> <span>廁所</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="extra-space-checkbox h-5 w-5 rounded" value="休息室" onchange="updatePreview()"> <span>休息室</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="extra-space-checkbox h-5 w-5 rounded" value="獨立包廂" onchange="updatePreview()"> <span>獨立包廂</span></label>
-                        </div>
-                    </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">總寬度 Width (cm)</label>
+            <input 
+              type="number" 
+              value={params.width}
+              onChange={(e) => setParams({...params, width: Number(e.target.value)})}
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">總高度 Height (cm)</label>
+            <input 
+              type="number" 
+              value={params.height}
+              onChange={(e) => setParams({...params, height: Number(e.target.value)})}
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">深度 Depth/支撐 (cm)</label>
+            <input 
+              type="number" 
+              value={params.depth}
+              onChange={(e) => setParams({...params, depth: Number(e.target.value)})}
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Truss 規格 (cm)</label>
+            <select 
+              value={params.thickness}
+              onChange={(e) => setParams({...params, thickness: Number(e.target.value)})}
+              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value={20}>20 x 20 (輕型)</option>
+              <option value={30}>30 x 30 (標準)</option>
+              <option value={40}>40 x 40 (重型)</option>
+            </select>
+          </div>
+        </div>
 
-                    <!-- 禁止事項 -->
-                    <div>
-                        <label class="block mb-2">場地禁止與管制項目 (可多選)</label>
-                        <div class="grid grid-cols-2 gap-3 p-3 rounded-lg border border-slate-200 text-base" style="background-color: var(--tint-bg);">
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="ban-checkbox h-5 w-5 text-rose-600 rounded" value="場內飲食" onchange="updatePreview()"> <span>場內飲食</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="ban-checkbox h-5 w-5 text-rose-600 rounded" value="使用明火" onchange="updatePreview()"> <span>使用明火</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="ban-checkbox h-5 w-5 text-rose-600 rounded" value="牆壁黏貼" onchange="updatePreview()"> <span>牆壁黏貼</span></label>
-                            <label class="flex items-center space-x-2 cursor-pointer font-bold"><input type="checkbox" class="ban-checkbox h-5 w-5 text-rose-600 rounded" value="使用煙霧機" onchange="updatePreview()"> <span>使用煙霧機</span></label>
-                        </div>
-                    </div>
+        {/* Canvas Preview Area */}
+        <div className="flex-1 bg-gray-200 rounded-xl flex items-center justify-center p-4 overflow-hidden border border-gray-300 shadow-inner">
+          <canvas 
+            ref={canvasRef} 
+            className="bg-white shadow-md max-w-full max-h-full object-contain"
+          ></canvas>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                    <!-- 雨備方案 -->
-                    <div>
-                        <label class="block mb-2">現場備用雨備計畫</label>
-                        <select id="select-rain" onchange="updatePreview()" class="w-full border border-slate-300 rounded-lg text-base focus:outline-none font-bold">
-                            <option value="室內不需雨備">室內不需雨備</option>
-                            <option value="需搭設大型雨棚/遮雨帳">需搭設大型雨棚/遮雨帳 (可提供雨備)</option>
-                            <option value="轉移至室內預備場地 (有完整備案)">轉移至室內預備場地 (備案安全空間)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+function FloorPlanTab() {
+  const canvasRef = useRef(null);
+  const [leftTab, setLeftTab] = useState('library'); // 'library' or 'custom'
+  
+  // 使用 cx, cy (中心點) 來取代 x, y，方便進行旋轉與縮放計算
+  const [items, setItems] = useState([
+    { id: 1, type: 'rect', cx: 400, cy: 200, w: 200, h: 80, label: '主舞台', color: '#fef3c7', rotation: 0, scale: 1 },
+    { id: 2, type: 'rect', cx: 400, cy: 400, w: 100, h: 40, label: '控台 (PA)', color: '#e0f2fe', rotation: 0, scale: 1 }
+  ]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
+  
+  const [mode, setMode] = useState('select'); // 'select' or 'draw_polygon'
+  const [polygonPoints, setPolygonPoints] = useState([]);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const lastMouseRef = useRef({ x: 0, y: 0 });
 
-            <!-- 動態擴充專屬檢核區 -->
-            <div id="dynamic-activity-section" class="rounded-xl shadow-sm p-6 border" style="background-color: var(--tint-bg); border-color: var(--sky-blue);">
-                <div class="flex items-center space-x-2 pb-2 mb-4 border-b border-sky-200">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-list-check"></i></span>
-                    <h2 class="text-base font-bold" id="dynamic-section-title">活動類型專屬檢核點</h2>
-                </div>
-                <div id="dynamic-form-fields" class="space-y-4">
-                    <!-- 根據模板動態填入內容 -->
-                </div>
-            </div>
+  // 元件庫資料設定
+  const libraryCategories = [
+    {
+      name: '會議論壇',
+      items: [
+        { label: '演講舞台', w: 180, h: 60, icon: <Presentation className="w-6 h-6 text-amber-500 mb-1" />, color: '#fef3c7' },
+        { label: '水晶講桌', w: 40, h: 40, icon: <Mic className="w-6 h-6 text-gray-500 mb-1" />, color: '#f3f4f6' },
+        { label: '貴賓沙發', w: 100, h: 40, icon: <Sofa className="w-6 h-6 text-emerald-500 mb-1" />, color: '#d1fae5' },
+        { label: '觀眾排椅', w: 120, h: 80, icon: <Users className="w-6 h-6 text-blue-500 mb-1" />, color: '#dbeafe' },
+        { label: '交流高腳桌', w: 40, h: 40, icon: <Coffee className="w-6 h-6 text-orange-400 mb-1" />, color: '#ffedd5' },
+        { label: '報到服務台', w: 120, h: 40, icon: <ClipboardList className="w-6 h-6 text-teal-500 mb-1" />, color: '#ccfbf1' }
+      ]
+    },
+    {
+      name: '市集展攤',
+      items: [
+        { label: '標準攤位', w: 90, h: 90, icon: <Store className="w-6 h-6 text-green-600 mb-1" />, color: '#bbf7d0' },
+        { label: '造型餐車', w: 120, h: 60, icon: <Truck className="w-6 h-6 text-amber-600 mb-1" />, color: '#fde68a' },
+        { label: '陳列長桌', w: 120, h: 40, icon: <Table className="w-6 h-6 text-orange-700 mb-1" />, color: '#fed7aa' },
+        { label: '市集圓桌', w: 60, h: 60, icon: <Disc className="w-6 h-6 text-orange-500 mb-1" />, color: '#ffedd5' },
+        { label: '大遮陽傘', w: 80, h: 80, icon: <Umbrella className="w-6 h-6 text-sky-500 mb-1" />, color: '#bae6fd' },
+        { label: '雙面立牌', w: 40, h: 20, icon: <PanelTop className="w-6 h-6 text-gray-700 mb-1" />, color: '#e5e7eb' }
+      ]
+    },
+    {
+      name: '戶外公共',
+      items: [
+        { label: '活動帳篷', w: 90, h: 90, icon: <Tent className="w-6 h-6 text-blue-600 mb-1" />, color: '#bfdbfe' },
+        { label: '充氣拱門', w: 150, h: 30, icon: <Rainbow className="w-6 h-6 text-pink-500 mb-1" />, color: '#fbcfe8' },
+        { label: '流動廁所', w: 60, h: 40, icon: <Droplets className="w-6 h-6 text-purple-500 mb-1" />, color: '#e9d5ff' },
+        { label: '救護站', w: 90, h: 60, icon: <HeartPulse className="w-6 h-6 text-red-500 mb-1" />, color: '#fecaca' },
+        { label: '垃圾集中處', w: 60, h: 40, icon: <Trash2 className="w-6 h-6 text-slate-500 mb-1" />, color: '#cbd5e1' },
+        { label: '美化綠化', w: 60, h: 60, icon: <TreePine className="w-6 h-6 text-emerald-600 mb-1" />, color: '#a7f3d0' }
+      ]
+    }
+  ];
 
-            <!-- 6. 現場實勘相片上傳 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-camera"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">6. 現場實勘照片</h2>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block">場地全景照 (或 A4 佈局圖)</label>
-                        <input type="file" id="img-layout" accept="image/*" onchange="handleImageUpload(event, 'preview-layout-img')" class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-base file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100">
-                    </div>
-                    <div>
-                        <label class="block">重要配電盤 / 現場細節照片</label>
-                        <input type="file" id="img-detail" accept="image/*" onchange="handleImageUpload(event, 'preview-detail-img')" class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-base file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100">
-                    </div>
-                </div>
-            </div>
+  const getMousePos = (canvas, evt) => {
+    const rect = canvas.getBoundingClientRect();
+    // 計算相對於畫布實際解析度的座標
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { 
+      x: (evt.clientX - rect.left) * scaleX, 
+      y: (evt.clientY - rect.top) * scaleY 
+    };
+  };
 
-            <!-- 7. 綜合結論 & 匹配度 -->
-            <div class="sky-card">
-                <div class="flex items-center space-x-2.5 border-b border-slate-100 pb-3 mb-4">
-                    <span class="text-xl" style="color: var(--sky-blue);"><i class="fa-solid fa-award"></i></span>
-                    <h2 class="text-lg font-bold" style="color: var(--deep-dark);">7. 適合度結論與評估</h2>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block mb-2">場地匹配度估值 (%)</label>
-                        <div class="flex items-center space-x-4">
-                            <input type="range" id="input-match-rate" min="10" max="100" value="85" oninput="updateMatchRateValue(this.value); updatePreview();" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-                            <span id="match-rate-val" class="text-lg font-bold w-16 text-right" style="color: var(--sky-blue);">85%</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block">綜合改善建議與備案</label>
-                        <textarea id="input-suggestion" oninput="updatePreview()" rows="4" class="w-full border border-slate-300 rounded-lg focus:outline-none text-base" placeholder="請填寫整體勘查心得與改進預防措施..."></textarea>
-                    </div>
-                </div>
-            </div>
+  // 精確判斷點是否在旋轉後的矩形內
+  const isPointInRotatedRect = (pos, item) => {
+    const dx = pos.x - item.cx;
+    const dy = pos.y - item.cy;
+    // 抵銷旋轉角度
+    const rad = -(item.rotation || 0) * Math.PI / 180;
+    const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+    const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+    
+    const actualW = item.w * (item.scale || 1);
+    const actualH = item.h * (item.scale || 1);
+    
+    return Math.abs(rx) <= actualW / 2 && Math.abs(ry) <= actualH / 2;
+  };
 
-        </section>
+  const isPointInPolygon = (point, vs) => {
+    let x = point.x, y = point.y;
+    let inside = false;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+      let xi = vs[i].x, yi = vs[i].y;
+      let xj = vs[j].x, yj = vs[j].y;
+      let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
 
-        <!-- 右側：即時 A4 報表預覽 (佔 7 欄) -->
-        <section class="lg:col-span-7 space-y-6">
-            
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-bold flex items-center" style="color: var(--deep-dark);">
-                    <i class="fa-solid fa-eye mr-2" style="color: var(--sky-blue);"></i>即時 A4 報表列印預覽 (共 3 頁)
-                </span>
-                <span class="text-xs px-3 py-1 rounded-full font-bold text-white" style="background-color: var(--deep-dark);">
-                    標準規格 A4 等比對齊
-                </span>
-            </div>
+  const handleMouseDown = (e) => {
+    const canvas = canvasRef.current;
+    const pos = getMousePos(canvas, e);
+    
+    if (mode === 'draw_polygon') {
+      if (polygonPoints.length > 2) {
+        const firstPt = polygonPoints[0];
+        const dist = Math.sqrt(Math.pow(pos.x - firstPt.x, 2) + Math.pow(pos.y - firstPt.y, 2));
+        if (dist < 20) {
+          finishPolygon();
+          return;
+        }
+      }
+      setPolygonPoints([...polygonPoints, pos]);
+      return;
+    }
 
-            <!-- 預覽容器：在此產生的 HTML 會直接用於導出 PDF (採用深色背襯以凸顯 A4 邊緣) -->
-            <div id="pdf-container" class="space-y-6 overflow-x-auto p-4 rounded-2xl shadow-inner flex flex-col items-center" style="background-color: var(--deep-dark);">
-                
-                <!-- PAGE 1: COVER PAGE -->
-                <div class="a4-page page-break" id="pdf-p1">
-                    <div class="flex justify-between items-start pb-4 border-b-2" style="border-color: var(--sky-blue);">
-                        <div>
-                            <span class="text-xs font-bold tracking-widest uppercase" style="color: var(--sky-blue);">現場勘查成果報告</span>
-                            <h3 class="text-lg font-bold mt-1" style="color: var(--deep-dark);">SITE SURVEY REPORT</h3>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-xs font-mono text-slate-400">CONFIDENTIAL</span>
-                        </div>
-                    </div>
+    // 選取邏輯（由上層往下層找）
+    let hitId = null;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (item.type === 'rect') {
+        if (isPointInRotatedRect(pos, item)) {
+          hitId = item.id;
+          break;
+        }
+      } else if (item.type === 'polygon') {
+        if (isPointInPolygon(pos, item.points)) {
+          hitId = item.id;
+          break;
+        }
+      }
+    }
 
-                    <div class="my-auto space-y-8 text-center px-4">
-                        <div class="inline-block text-xs px-4 py-1.5 rounded-full font-bold uppercase tracking-widest mb-2 border" style="background-color: var(--tint-bg); color: var(--deep-dark); border-color: var(--sky-blue);">
-                            PROPOSAL & FEASIBILITY REPORT
-                        </div>
-                        <h1 id="p-project" class="text-4xl font-extrabold leading-snug" style="color: var(--deep-dark);">
-                            [專案活動名稱載入中]
-                        </h1>
-                        <div class="w-20 h-1.5 mx-auto my-6 rounded-full" style="background-color: var(--sky-blue);"></div>
-                        <p class="max-w-lg mx-auto text-sm leading-relaxed text-slate-600">
-                            本報告嚴格遵循現場空間尺度、電力承載安全標準與物流進撤場動線進行實地勘查與可行性分析，確保活動執行流暢及安全品質。
-                        </p>
-                    </div>
+    setSelectedId(hitId);
+    if (hitId) {
+      setDraggingId(hitId);
+      lastMouseRef.current = pos;
+    }
+  };
 
-                    <div class="p-6 rounded-xl border border-slate-200" style="background-color: var(--tint-bg);">
-                        <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-slate-400 w-24 font-bold">勘查場地：</span>
-                                <span id="p-location" class="font-bold" style="color: var(--deep-dark);">-</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-slate-400 w-24 font-bold">報告人：</span>
-                                <span id="p-surveyor" class="font-bold" style="color: var(--deep-dark);">-</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-slate-400 w-24 font-bold">勘查日期：</span>
-                                <span id="p-date" class="font-bold" style="color: var(--deep-dark);">YYYY / MM / DD</span>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-slate-400 w-24 font-bold">場地窗口：</span>
-                                <span id="p-contact" class="font-bold" style="color: var(--deep-dark);">-</span>
-                            </div>
-                        </div>
-                    </div>
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    const pos = getMousePos(canvas, e);
+    setMousePos(pos);
 
-                    <div class="flex justify-between text-xs text-slate-400 pt-4 border-t border-slate-100">
-                        <span>© 專業場勘與專案管理小組</span>
-                        <span>Page 1 of 3</span>
-                    </div>
-                </div>
+    if (draggingId) {
+      const dx = pos.x - lastMouseRef.current.x;
+      const dy = pos.y - lastMouseRef.current.y;
+      lastMouseRef.current = pos;
 
-                <!-- PAGE 2: SPECS & ELECTRICAL (深度表格重構，極致清晰) -->
-                <div class="a4-page page-break" id="pdf-p2">
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-                            <span class="text-xs font-bold tracking-wider text-slate-400">現場勘查成果報告</span>
-                            <span class="text-xs font-bold" style="color: var(--sky-blue);">空間規格與供配電檢核表</span>
-                        </div>
+      setItems(items.map(item => {
+        if (item.id === draggingId) {
+          if (item.type === 'rect') {
+            return { ...item, cx: item.cx + dx, cy: item.cy + dy };
+          } else if (item.type === 'polygon') {
+            return {
+              ...item,
+              points: item.points.map(p => ({ x: p.x + dx, y: p.y + dy }))
+            };
+          }
+        }
+        return item;
+      }));
+    }
+  };
 
-                        <!-- 空間基本特性與類型 -->
-                        <div class="grid grid-cols-12 gap-3">
-                            <div class="col-span-8 p-3.5 rounded-lg border border-slate-200" style="background-color: var(--tint-bg);">
-                                <h4 class="text-xs font-bold mb-2 flex items-center" style="color: var(--deep-dark);"><i class="fa-solid fa-map mr-1.5" style="color: var(--sky-blue);"></i> 1. 空間物理與類型指標</h4>
-                                <div class="grid grid-cols-3 gap-2 text-xs">
-                                    <div><span class="text-slate-400 block mb-0.5">總容納人數：</span><strong class="text-sm" style="color: var(--deep-dark);" id="p-capacity-num">-</strong></div>
-                                    <div><span class="text-slate-400 block mb-0.5">場地尺寸：</span><strong class="text-sm" style="color: var(--deep-dark);" id="p-dim">-</strong></div>
-                                    <div><span class="text-slate-400 block mb-0.5">室內淨挑高：</span><strong class="text-sm" style="color: var(--deep-dark);" id="p-height">-</strong></div>
-                                </div>
-                                <div class="mt-2.5 pt-2 border-t border-slate-200/50 text-xs">
-                                    <span class="text-slate-400">場地屬性：</span><strong style="color: var(--deep-dark);" id="p-type">-</strong>
-                                </div>
-                            </div>
-                            <div class="col-span-4 p-3.5 rounded-lg border border-slate-200 flex flex-col justify-between" style="background-color: var(--tint-bg);">
-                                <div>
-                                    <h4 class="text-xs font-bold mb-1" style="color: var(--deep-dark);"><i class="fa-solid fa-umbrella mr-1.5" style="color: var(--sky-blue);"></i> 2. 雨備方案</h4>
-                                    <p class="text-xs font-bold" style="color: var(--deep-dark);" id="p-rain">-</p>
-                                </div>
-                                <div class="border-t border-slate-200 pt-1.5">
-                                    <span class="text-[10px] text-slate-400 block">管制禁止事項：</span>
-                                    <strong class="text-xs text-rose-700 font-bold" id="p-ban">-</strong>
-                                </div>
-                            </div>
-                        </div>
+  const handleMouseUp = () => { setDraggingId(null); };
 
-                        <!-- 供配電技術參數評核 (高對比輕色背襯) -->
-                        <div class="p-4 rounded-lg border border-sky-100" style="background-color: var(--tint-bg);">
-                            <h4 class="text-xs font-bold mb-2.5 flex justify-between items-center" style="color: var(--deep-dark);">
-                                <span class="flex items-center"><i class="fa-solid fa-bolt mr-1.5" style="color: var(--sky-blue);"></i> 3. 供配電設備與安全防護評估</span>
-                                <span id="p-status-power-badge">🟢 良好</span>
-                            </h4>
-                            <div class="grid grid-cols-2 gap-4 text-xs">
-                                <div>
-                                    <p class="text-slate-500 mb-1.5">可用總配電容量：</p>
-                                    <div class="p-2.5 rounded border border-slate-200 grid grid-cols-2 gap-2 font-mono text-center bg-white">
-                                        <div>110V: <strong style="color: var(--deep-dark);" id="p-amp110">-</strong></div>
-                                        <div>220V: <strong style="color: var(--deep-dark);" id="p-amp220">-</strong></div>
-                                    </div>
-                                    <div class="mt-3 space-y-1 text-slate-600">
-                                        <div>臨時接電：<strong style="color: var(--deep-dark);" id="p-no-extra-power">-</strong></div>
-                                        <div>發電機配備：<strong style="color: var(--deep-dark);" id="p-use-generator">-</strong></div>
-                                    </div>
-                                </div>
-                                <div class="border-l border-sky-200 pl-4 space-y-1.5 text-slate-600">
-                                    <p class="font-bold text-slate-700 mb-1">電力查核安全項目：</p>
-                                    <div id="p-chk-power-list" class="space-y-1">
-                                        <!-- 動態同步勾選內容 -->
-                                    </div>
-                                    <div class="pt-2">
-                                        <span class="text-[10px] text-slate-400 block">電力狀況備註說明：</span>
-                                        <p id="p-power-desc" class="text-[10px] italic mt-0.5 leading-relaxed" style="color: var(--deep-dark);">-</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+  const handleDoubleClick = () => {
+    if (mode === 'draw_polygon' && polygonPoints.length >= 3) {
+      finishPolygon();
+    }
+  };
 
-                        <!-- 設備提供與場地配置 -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="p-3.5 rounded-lg border border-slate-200 flex flex-col justify-between" style="background-color: var(--tint-bg);">
-                                <div>
-                                    <h4 class="text-xs font-bold mb-2" style="color: var(--deep-dark);"><i class="fa-solid fa-couch mr-1.5" style="color: var(--sky-blue);"></i> 4. 現場提供之硬體設備</h4>
-                                    <div class="text-xs">
-                                        <span class="text-slate-400 block mb-1">硬體配置：</span>
-                                        <strong class="leading-relaxed block mb-2" style="color: var(--deep-dark);" id="p-equip">-</strong>
-                                    </div>
-                                </div>
-                                <div class="border-t border-slate-200/60 pt-2 text-[10px] text-slate-500 space-y-1" id="p-chk-equip-list">
-                                    <!-- 設備檢查勾選 -->
-                                </div>
-                            </div>
-                            <div class="p-3.5 rounded-lg border border-slate-200" style="background-color: var(--tint-bg);">
-                                <h4 class="text-xs font-bold mb-2" style="color: var(--deep-dark);"><i class="fa-solid fa-border-all mr-1.5" style="color: var(--sky-blue);"></i> 5. 舞台與會場配置規劃</h4>
-                                <table class="w-full text-xs border-collapse text-left">
-                                    <tbody>
-                                        <tr class="border-b border-slate-200/50"><td class="py-1.5 text-slate-400 w-24">舞台規格：</td><td class="py-1.5"><strong style="color: var(--deep-dark);" id="p-stage">-</strong></td></tr>
-                                        <tr class="border-b border-slate-200/50"><td class="py-1.5 text-slate-400">音控位置：</td><td class="py-1.5"><strong style="color: var(--deep-dark);" id="p-mixer-loc">-</strong></td></tr>
-                                        <tr class="border-b border-slate-200/50"><td class="py-1.5 text-slate-400">主題牆位置：</td><td class="py-1.5"><strong style="color: var(--deep-dark);" id="p-backdrop">-</strong></td></tr>
-                                        <tr><td class="py-1.5 text-slate-400">攝影專區：</td><td class="py-1.5"><strong style="color: var(--deep-dark);" id="p-photo-area">-</strong></td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+  const finishPolygon = () => {
+    if (polygonPoints.length < 3) {
+      setPolygonPoints([]);
+      setMode('select');
+      return;
+    }
+    const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+    setItems([...items, { 
+      id: newId, type: 'polygon', points: polygonPoints, 
+      label: '不規則區域', color: '#fef08a' 
+    }]);
+    setPolygonPoints([]);
+    setMode('select');
+  };
 
-                        <!-- 進撤場與物流 -->
-                        <div class="p-3.5 rounded-lg border border-slate-200" style="background-color: var(--tint-bg);">
-                            <h4 class="text-xs font-bold mb-2.5" style="color: var(--deep-dark);"><i class="fa-solid fa-truck mr-1.5" style="color: var(--sky-blue);"></i> 6. 進撤場物流與動線檢核</h4>
-                            <div class="grid grid-cols-2 gap-4 text-xs text-slate-600">
-                                <div class="space-y-1.5">
-                                    <div>貨運電梯：<strong style="color: var(--deep-dark);" id="p-elevator">-</strong></div>
-                                    <div>指定卸貨：<strong style="color: var(--deep-dark);" id="p-unloading-zone">-</strong></div>
-                                    <div>管制時段：<strong class="text-rose-700" id="p-time-control">-</strong></div>
-                                </div>
-                                <div id="p-chk-logistics-list" class="space-y-1 border-l border-slate-200 pl-4">
-                                    <!-- 進撤場檢查勾選 -->
-                                </div>
-                            </div>
-                        </div>
+  const addLibraryItem = (libItem) => {
+    const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+    setItems([...items, { 
+      id: newId, 
+      type: 'rect', 
+      cx: 400, cy: 300, // 放在畫布中間
+      w: libItem.w, 
+      h: libItem.h, 
+      label: libItem.label, 
+      color: libItem.color,
+      rotation: 0,
+      scale: 1
+    }]);
+    setSelectedId(newId);
+    setMode('select');
+  };
 
-                    </div>
-                    <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-100">
-                        <span>© 專業場勘與專案管理小組</span>
-                        <span>Page 2 of 3</span>
-                    </div>
-                </div>
+  const updateItem = (id, field, value) => {
+    setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
 
-                <!-- PAGE 3: PHOTOS & DYNAMIC ACTIVITY CHECKLIST (極致調色) -->
-                <div class="a4-page" id="pdf-p3">
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-                            <span class="text-xs font-bold text-slate-400 tracking-wider">現場勘查成果報告</span>
-                            <span class="text-xs font-bold" style="color: var(--sky-blue);">防護指標與綜合適合度評估</span>
-                        </div>
+  const bringToFront = (id) => {
+    setItems(prev => {
+      const itemIndex = prev.findIndex(i => i.id === id);
+      if (itemIndex === -1) return prev;
+      const newItems = [...prev];
+      const [item] = newItems.splice(itemIndex, 1);
+      return [...newItems, item]; // 放到最後面 (最上層)
+    });
+  };
 
-                        <!-- 基礎設施與合規防護評價 -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="p-3 rounded-lg border border-slate-200 text-xs space-y-2" style="background-color: var(--tint-bg);">
-                                <h4 class="text-xs font-bold flex items-center mb-1" style="color: var(--deep-dark);">
-                                    <span class="w-1.5 h-3.5 rounded-full mr-2 inline-block" style="background-color: var(--sky-blue);"></span>
-                                    七、 基礎設施評價
-                                </h4>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div class="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                                        <span class="text-slate-400">供電：</span>
-                                        <span id="p-status-power-badge-inner" class="font-bold">-</span>
-                                    </div>
-                                    <div class="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                                        <span class="text-slate-400">給水：</span>
-                                        <span id="p-status-water-badge" class="font-bold">-</span>
-                                    </div>
-                                    <div class="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                                        <span class="text-slate-400">空調：</span>
-                                        <span id="p-status-air-badge" class="font-bold">-</span>
-                                    </div>
-                                    <div class="flex items-center justify-between p-1.5 bg-white rounded border border-slate-200">
-                                        <span class="text-slate-400">網路：</span>
-                                        <span id="p-status-net-badge" class="font-bold">-</span>
-                                    </div>
-                                </div>
-                            </div>
+  const duplicateItem = (id) => {
+    const itemToCopy = items.find(i => i.id === id);
+    if (itemToCopy) {
+      const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
+      let newItem = { ...itemToCopy, id: newId };
+      if (newItem.type === 'rect') {
+        newItem.cx += 20;
+        newItem.cy += 20;
+      } else if (newItem.type === 'polygon') {
+        newItem.points = newItem.points.map(p => ({ x: p.x + 20, y: p.y + 20 }));
+      }
+      setItems([...items, newItem]);
+      setSelectedId(newId);
+    }
+  };
 
-                            <div class="p-3 rounded-lg border border-slate-200 text-xs space-y-2" style="background-color: var(--tint-bg);">
-                                <h4 class="text-xs font-bold flex items-center mb-1" style="color: var(--deep-dark);">
-                                    <span class="w-1.5 h-3.5 rounded-full mr-2 inline-block" style="background-color: var(--sky-blue);"></span>
-                                    八、 安全合規勾選狀態
-                                </h4>
-                                <div class="grid grid-cols-2 gap-2 text-[10px]" id="p-chk-safety-status-grid">
-                                    <!-- 安全合規狀態動態對接 -->
-                                    <div id="chk-preview-fire" class="flex items-center space-x-1.5"></div>
-                                    <div id="chk-preview-exit" class="flex items-center space-x-1.5"></div>
-                                    <div id="chk-preview-insurance" class="flex items-center space-x-1.5"></div>
-                                    <div id="chk-preview-capacity" class="flex items-center space-x-1.5"></div>
-                                </div>
-                            </div>
-                        </div>
+  const deleteItem = (id) => {
+    setItems(items.filter(item => item.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  };
 
-                        <!-- 動態活動類型專屬檢核表 -->
-                        <div class="p-3.5 rounded-lg border border-sky-100" style="background-color: var(--tint-bg);">
-                            <h4 class="text-xs font-bold mb-2 flex items-center" style="color: var(--deep-dark);">
-                                <span class="w-1.5 h-3.5 rounded-full mr-2 inline-block" style="background-color: var(--sky-blue);"></span>
-                                九、 <span id="p-dynamic-activity-title">活動類型專屬檢核點</span>
-                            </h4>
-                            <table class="w-full text-xs border border-slate-200 bg-white rounded-lg overflow-hidden">
-                                <thead class="text-white text-[11px]" style="background-color: var(--deep-dark);">
-                                    <tr>
-                                        <th class="py-2 px-3 text-left w-1/3 border-r border-slate-800">檢核項目</th>
-                                        <th class="py-2 px-3 text-left w-2/3">現場實勘狀況 / 數據紀錄</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="p-dynamic-activity-table-body" class="divide-y divide-slate-200">
-                                    <!-- 動態渲染對應表單欄位內容 -->
-                                </tbody>
-                            </table>
-                        </div>
+  const clearCanvas = () => {
+    if(window.confirm('確定要清空畫布重新繪製嗎？')) {
+      setItems([]);
+      setSelectedId(null);
+      setPolygonPoints([]);
+    }
+  };
 
-                        <!-- 現場實體照片 (向量線條佔位符，採用 Sky Blue 作為主體線條配色) -->
-                        <div>
-                            <h4 class="text-xs font-bold flex items-center mb-2.5" style="color: var(--deep-dark);">
-                                <span class="w-1.5 h-3.5 rounded-full mr-2 inline-block" style="background-color: var(--sky-blue);"></span>
-                                十、 現場重點實勘相片
-                            </h4>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="border border-slate-200 rounded-xl p-2.5 text-center relative" style="background-color: var(--tint-bg);">
-                                    <p class="text-[10px] font-bold text-slate-500 mb-1.5">場地全景 / A4 佈局圖</p>
-                                    <div class="h-28 w-full bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center border border-dashed border-slate-300">
-                                        <img id="preview-layout-img" src="" alt="請上傳場地全景照片" class="h-full w-full object-cover hidden">
-                                        <div id="preview-layout-placeholder" class="text-slate-400 text-[10px] space-y-1">
-                                            <!-- 使用 #2BAFF2 為線條的 SVG -->
-                                            <svg class="w-8 h-8 mx-auto" style="color: var(--sky-blue);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-                                            <span class="block">未上傳場地配置圖 (預設保留)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="border border-slate-200 rounded-xl p-2.5 text-center relative" style="background-color: var(--tint-bg);">
-                                    <p class="text-[10px] font-bold text-slate-500 mb-1.5">重要配電盤 / 改善細節照片</p>
-                                    <div class="h-28 w-full bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center border border-dashed border-slate-300">
-                                        <img id="preview-detail-img" src="" alt="請上傳細節照片" class="h-full w-full object-cover hidden">
-                                        <div id="preview-detail-placeholder" class="text-slate-400 text-[10px] space-y-1">
-                                            <!-- 使用 #2BAFF2 為線條 of the SVG -->
-                                            <svg class="w-8 h-8 mx-auto" style="color: var(--sky-blue);" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                            <span class="block">未上傳配電設施細節 (預設保留)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+  const getPolygonCentroid = (pts) => {
+    let first = pts[0], last = pts[pts.length - 1];
+    if (first.x !== last.x || first.y !== last.y) pts = [...pts, first];
+    let twicearea = 0, x = 0, y = 0, nPts = pts.length, p1, p2, f;
+    for (let i = 0, j = nPts - 1; i < nPts; j = i++) {
+      p1 = pts[i]; p2 = pts[j];
+      f = p1.x * p2.y - p2.x * p1.y;
+      twicearea += f;
+      x += (p1.x + p2.x) * f;
+      y += (p1.y + p2.y) * f;
+    }
+    f = twicearea * 3;
+    return { x: x / f, y: y / f };
+  };
 
-                        <!-- 綜合匹配與改善 (Match Rate 使用 #05090E 底配 #00DDFF 字體) -->
-                        <div>
-                            <h4 class="text-xs font-bold flex items-center mb-2" style="color: var(--deep-dark);">
-                                <span class="w-1.5 h-3.5 rounded-full mr-2 inline-block" style="background-color: var(--sky-blue);"></span>
-                                十一、 適合度綜合結論評級
-                            </h4>
-                            <div class="border p-3.5 rounded-xl flex items-center space-x-5" style="background-color: var(--tint-bg); border-color: var(--sky-blue);">
-                                <div class="text-center py-2 px-3.5 rounded-xl border shadow-sm text-white" style="background-color: var(--deep-dark); border-color: var(--sky-blue);">
-                                    <span class="text-[10px] font-bold block mb-0.5" style="color: var(--sky-blue);">適合度估值</span>
-                                    <span id="p-match-rate" class="text-2xl font-black" style="color: var(--cyan-highlight);">85%</span>
-                                </div>
-                                <div class="flex-1 text-xs">
-                                    <p id="p-suggestion" class="leading-relaxed font-bold" style="color: var(--deep-dark);">[結論與建議填寫處]</p>
-                                </div>
-                            </div>
-                        </div>
+  // 繪製畫布
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // 設定內部解析度
+    const width = 800;
+    const height = 600;
+    canvas.width = width;
+    canvas.height = height;
 
-                    </div>
-                    <div class="flex justify-between text-xs text-slate-400 pt-2 border-t border-slate-100">
-                        <span>© 專業場勘與專案管理小組</span>
-                        <span>Page 3 of 3</span>
-                    </div>
-                </div>
+    // 清空與繪製網格背景
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    for(let x=0; x<=width; x+=20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+    for(let y=0; y<=height; y+=20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
 
-            </div>
+    // 繪製物件
+    items.forEach(item => {
+      ctx.save();
+      
+      const isSelected = item.id === selectedId;
+      ctx.fillStyle = item.color;
+      ctx.strokeStyle = isSelected ? '#3b82f6' : '#64748b'; // 選取時顯示藍色邊框
+      ctx.lineWidth = isSelected ? 3 : 1;
+      
+      if (isSelected) {
+        ctx.shadowColor = 'rgba(59, 130, 246, 0.3)';
+        ctx.shadowBlur = 8;
+      }
 
-        </section>
+      if (item.type === 'rect') {
+        const actualW = item.w * (item.scale || 1);
+        const actualH = item.h * (item.scale || 1);
+        
+        // 移動到中心點並旋轉
+        ctx.translate(item.cx, item.cy);
+        ctx.rotate((item.rotation || 0) * Math.PI / 180);
+        
+        // 繪製矩形 (以原點為中心)
+        ctx.beginPath();
+        ctx.roundRect(-actualW / 2, -actualH / 2, actualW, actualH, 4);
+        ctx.fill();
+        ctx.stroke();
 
-    </main>
+        // 繪製文字
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'transparent';
+        ctx.fillText(item.label, 0, 0);
 
-    <!-- 系統控制 JavaScript -->
-    <script>
-        // 4 套對接上傳表單的專業活動模板資料庫
-        const templatesDb = {
-            outdoor: {
-                project: "2026 青春活力草地音樂祭",
-                location: "陽光森林運動公園 - 大草坪 (新北市運動路88號)",
-                surveyor: "陳小飛 (活動總監)",
-                date: "2026-07-18",
-                contact: "公園管理處 游主任 / 02-2345-6789",
-                capacityNum: "800 人",
-                dim: "50x30m",
-                height: "無限制 (露天)",
-                stage: "寬 12m x 深 8m x 高 1.2m",
-                backdrop: "主入口 left 側拱門區",
-                mixerLoc: "舞台正前方 20 米中軸線",
-                photoArea: "音控台後方高台區",
-                amp110: "無常備大電",
-                amp220: "無常備大電",
-                noExtraPower: false,
-                useGenerator: true,
-                photoPanel: false,
-                genLoc: true,
-                license: true,
-                elevator: false,
-                unloadingZone: "草坪西側專用碎石施工便道",
-                timeControl: "晚上 22:00 至 翌日 07:00 嚴格禁噪",
-                logisticsDist: true,
-                parkingGrid: true,
-                elevatorDim: false,
-                types: ["露天", "活動空間"],
-                equips: ["獨立舞台", "無線網路"],
-                audioLoc: true,
-                lightCtrl: false,
-                socketLoc: false,
-                extraSpaces: ["廁所"],
-                bans: ["使用明火", "牆壁黏貼"],
-                rain: "需搭設大型雨棚/遮雨帳",
-                matchRate: 82,
-                suggestion: "戶外草地氛圍極佳。因為是露天，必須嚴格配置防雨蓬架以及防水配電箱。發電機擺放室外避開人群，並於前14天向環保局完成臨時活動與音量備案。",
-                power: "戶外現場無常設電盤，需向配電廠商承租 200kW 行動發電機。舞台區及副控端需拉防水橡膠線槽覆蓋保護。",
-                statusPower: "異常",
-                statusWater: "普通",
-                statusAir: "異常",
-                statusNet: "良好",
-                chkFire: true,
-                chkExit: true,
-                chkInsurance: true,
-                chkCapacity: false,
-                // 動態活動欄位
-                activityType: "outdoor",
-                dynamicFields: {
-                    "草地防淹積水處理": "現場排水順暢，若遇下雨需鋪設臨時防護膠板避免泥濘",
-                    "垃圾清理與清運機制": "已聯繫外包清潔團隊，現場配置20個分類垃圾桶",
-                    "戶外大眾運輸與指引": "捷運站步行約12分鐘，大門口設有顯眼指引牌"
-                }
-            },
-            award: {
-                project: "2026 卓越青年科學與創新設計頒獎典禮",
-                location: "大都會演藝廳 - 主演奏廳 (臺中市市政路100號)",
-                surveyor: "張莉雅 (技術統籌)",
-                date: "2026-09-05",
-                contact: "演出管理部 廖組長 / 04-2233-4455",
-                capacityNum: "450 人",
-                dim: "25x18m",
-                height: "7.2m",
-                stage: "寬 16m x 深 10m x 高 0.8m",
-                backdrop: "一樓售票大廳右側",
-                mixerLoc: "舞台正對面後方音控室",
-                photoArea: "舞台前緣左側貴賓攝影席",
-                amp110: "100A",
-                amp220: "200A",
-                noExtraPower: true,
-                useGenerator: false,
-                photoPanel: true,
-                genLoc: false,
-                license: true,
-                elevator: true,
-                unloadingZone: "B2 地下卸貨碼頭 (限高 4.2 米)",
-                timeControl: "進撤場無特定時間管制，但演出期間需極致安靜",
-                logisticsDist: true,
-                parkingGrid: true,
-                elevatorDim: true,
-                types: ["表演廳", "活動空間"],
-                equips: ["音響設備", "投影設備", "獨立舞台", "舞台燈光", "桌椅", "無線網路"],
-                audioLoc: true,
-                lightCtrl: true,
-                socketLoc: true,
-                extraSpaces: ["廁所", "休息室", "獨立包廂"],
-                bans: ["場內飲食", "使用明火", "牆壁黏貼"],
-                rain: "室內不需雨備",
-                matchRate: 98,
-                suggestion: "硬體規格與供電屬頂級配置，完美適合頒獎典禮。注意舞台材質為高級懸空木地板，架設大型LED螢幕時底座需加上保護膠墊分散承重。",
-                power: "舞台後方備有標準 220V/200A 大電箱二處，供電品質極佳，現場附有臨時配電盤供廠商直接跳接。",
-                statusPower: "良好",
-                statusWater: "良好",
-                statusAir: "良好",
-                statusNet: "良好",
-                chkFire: true,
-                chkExit: true,
-                chkInsurance: true,
-                chkCapacity: true,
-                activityType: "award",
-                dynamicFields: {
-                    "後台更衣室配置": "備有 6 間專屬休息化妝室，內附飲水與大鏡子",
-                    "受獎人進出舞台動線": "一律由舞台右側階梯上台拍照，並由左側階梯下台",
-                    "現場空調冷房效果": "中央空調良好，音噪低於 30dB，符合大會安靜標準"
-                }
-            },
-            forum: {
-                project: "2026 亞太青年永續科技高峰論壇",
-                location: "國際會議園園區 - 201 階梯會議廳 (台北市信義路五段1號)",
-                surveyor: "黃信介 (大會行政祕書)",
-                date: "2026-06-12",
-                contact: "會議中心董專員 / 02-8877-6655",
-                capacityNum: "250 人",
-                dim: "22x15m",
-                height: "4.2m",
-                stage: "寬 10m x 深 4m x 高 0.4m",
-                backdrop: "大廳入口外報到處旁",
-                mixerLoc: "會議廳最後方左側控制台",
-                photoArea: "中軸座位通道後方",
-                amp110: "80A",
-                amp220: "50A",
-                noExtraPower: true,
-                useGenerator: false,
-                photoPanel: true,
-                genLoc: false,
-                license: false,
-                elevator: true,
-                unloadingZone: "B1 號大樓專屬貨用卸貨區",
-                timeControl: "週日進場需提前向園區保全報備申請",
-                logisticsDist: true,
-                parkingGrid: false,
-                elevatorDim: true,
-                types: ["展覽館", "活動空間"],
-                equips: ["音響設備", "投影設備", "桌椅", "無線網路"],
-                audioLoc: true,
-                lightCtrl: true,
-                socketLoc: true,
-                extraSpaces: ["廁所", "休息室"],
-                bans: ["牆壁黏貼"],
-                rain: "室內不需雨備",
-                matchRate: 94,
-                suggestion: "會議廳地毯及吸音效果良好。觀眾席皆有均勻的長效地插電源。現場光纖頻寬經實測十分流暢，完全適合現場多路高畫質直播連線。",
-                power: "會議廳邊牆備有標準 110V 插座共 12 處，中控台旁有 220V 備用單相電源，可完全滿足直播車用電需求。",
-                statusPower: "良好",
-                statusWater: "良好",
-                statusAir: "良好",
-                statusNet: "良好",
-                chkFire: true,
-                chkExit: true,
-                chkInsurance: true,
-                chkCapacity: true,
-                activityType: "forum",
-                dynamicFields: {
-                    "座位配置類型": "階梯會議型/課桌椅混合式，走道維持 1.5 米寬",
-                    "視線死角檢核": "後排無柱子擋住視線，投影幕高掛視野極佳",
-                    "講員休息室配套": "備有獨立講員休息室，提供茶水、連身鏡與沙發",
-                    "投影螢幕與接頭": "主投影 250 吋，亮度充足，支援 HDMI 及 Type-C 接頭",
-                    "學員座位用電配置": "座位區配有長效地插座，每排均備有 3 組插座槽",
-                    "茶歇擺放與手洗間": "茶水間設於會議大廳出口右側，洗手間距離僅 15 公尺"
-                }
-            },
-            market: {
-                project: "2026 綠色生活文創與在地青創手作市集",
-                location: "松菸文創園區 - 露天椰林大道 (台北市信義區光復南路133號)",
-                surveyor: "劉君臨 (市集召集人)",
-                date: "2026-05-30",
-                contact: "文創部郭專員 / 02-6633-8899",
-                capacityNum: "500 人",
-                dim: "60x10m",
-                height: "無限制",
-                stage: "不需搭建舞台 (改設街頭表演區)",
-                backdrop: "巴洛克花園古典紅磚拱門口旁",
-                mixerLoc: "街頭表演區右側遮陽帳內",
-                photoArea: "椰林大道兩側樹蔭空地",
-                amp110: "50A (地井配電)",
-                amp220: "無",
-                noExtraPower: false,
-                useGenerator: true,
-                photoPanel: true,
-                genLoc: true,
-                license: true,
-                elevator: false,
-                unloadingZone: "園區指定中庭車道旁卸貨點",
-                timeControl: "限上午 9:00 前或下午 18:00 後進車卸貨",
-                logisticsDist: true,
-                parkingGrid: true,
-                elevatorDim: false,
-                types: ["露天", "活動空間"],
-                equips: ["桌椅", "無線網路"],
-                audioLoc: false,
-                lightCtrl: false,
-                socketLoc: true,
-                extraSpaces: ["廁所"],
-                bans: ["使用明火", "牆壁黏貼", "使用煙霧機"],
-                rain: "需搭設大型雨棚/遮雨帳",
-                matchRate: 88,
-                suggestion: "松菸文創氛圍好。攤位配電限制每攤 15A 內，嚴禁使用高功率電暖或電烤箱。餐飲污水油脂不可直接倒進雨水溝，必須統一運走。",
-                power: "現場電力依靠地井提供。部分較遠攤位需由技術廠商拉設過街線槽防滑墊，以保障現場遊客步行安全。",
-                statusPower: "普通",
-                statusWater: "普通",
-                statusAir: "普通",
-                statusNet: "良好",
-                chkFire: true,
-                chkExit: true,
-                chkInsurance: true,
-                chkCapacity: true,
-                activityType: "market",
-                dynamicFields: {
-                    "大眾運輸步行指引": "捷運站 5 號出口步行約 6 分鐘，沿途均有明顯指標",
-                    "攤商用水與洗手台": "公共水源充足，現場在中段設有 2 處攤商專用洗手台",
-                    "廢水排放與截油設施": "配置專用污水收集桶，禁止倒入雨水溝；熟食攤備有簡易截油槽",
-                    "路面整平與積水風險": "石板路面大致平整，雨天需安排橡膠防滑走道板",
-                    "垃圾集中與清運聯絡": "設有 1 處大型垃圾集中轉運站，每日 18:30 清運車定時收取",
-                    "夜間照明與需補光點": "18:00 後光線微弱，部分古蹟暗角需租用臨時防雨高亮 LED 投射燈"
-                }
-            }
-        };
-
-        // 頁面初始化
-        window.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            const dateInput = document.getElementById('input-date');
-            if (dateInput) {
-                dateInput.value = today;
-            }
-            
-            // 預設載入論壇活動模板作為初始畫面
-            loadTemplate('forum');
+      } else if (item.type === 'polygon') {
+        ctx.beginPath();
+        item.points.forEach((p, idx) => {
+          if (idx === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
         });
-
-        // 顯示通知訊息 (配合 UI 改為深底青字，提高科技信賴感)
-        function showToast(message, isSuccess = true) {
-            const toast = document.getElementById('toast');
-            const toastMsg = document.getElementById('toast-message');
-            const toastIcon = document.getElementById('toast-icon');
-
-            if (!toast || !toastMsg || !toastIcon) return;
-
-            toastMsg.textContent = message;
-            if (isSuccess) {
-                toastIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
-                toastIcon.style.color = "var(--cyan-highlight)";
-            } else {
-                toastIcon.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
-                toastIcon.style.color = "#ef4444";
-            }
-
-            toast.className = toast.className.replace("translate-y-[-100px]", "translate-y-0");
-            toast.className = toast.className.replace("opacity-0", "opacity-100");
-
-            setTimeout(() => {
-                toast.className = toast.className.replace("translate-y-0", "translate-y-[-100px]");
-                toast.className = toast.className.replace("opacity-100", "opacity-0");
-            }, 3000);
-        }
-
-        // 滑桿數值同步
-        function updateMatchRateValue(val) {
-            const rateVal = document.getElementById('match-rate-val');
-            if (rateVal) {
-                rateVal.textContent = val + '%';
-            }
-        }
-
-        // 照片檔案轉換為 Base64
-        function handleImageUpload(event, previewId) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!file.type.startsWith('image/')) {
-                showToast("請上傳有效的圖片檔案！", false);
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imgElement = document.getElementById(previewId);
-                const placeholder = document.getElementById(previewId + '-placeholder');
-                
-                if (imgElement) {
-                    imgElement.src = e.target.result;
-                    imgElement.classList.remove('hidden');
-                }
-                if (placeholder) {
-                    placeholder.classList.add('hidden');
-                }
-                
-                showToast("照片上傳成功，已即時合成至 A4 預覽報告中！");
-                updatePreview();
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // 核心：即時將表單數據同步到右側 A4 PDF 預覽畫面
-        function updatePreview() {
-            // 安全獲取輸入值並賦值的輔助函式 (預設一律高強度的 Deep Dark 顏色)
-            const syncText = (inputId, previewId, defaultText = "-") => {
-                const inputEl = document.getElementById(inputId);
-                const prevEl = document.getElementById(previewId);
-                if (prevEl) {
-                    prevEl.textContent = inputEl ? (inputEl.value || defaultText) : defaultText;
-                }
-            };
-
-            // 基本資訊
-            syncText('input-project', 'p-project', "[ 未命名專案 ]");
-            syncText('input-location', 'p-location', "[ 未填寫場地名稱 ]");
-            syncText('input-surveyor', 'p-surveyor', "[ 尚未填寫 ]");
-            syncText('input-date', 'p-date', "YYYY-MM-DD");
-            syncText('input-contact', 'p-contact', "[ 尚未填寫 ]");
-
-            // 空間尺寸
-            syncText('input-capacity-num', 'p-capacity-num', "未填");
-            syncText('input-dim', 'p-dim', "未填");
-            syncText('input-height', 'p-height', "未填");
-
-            // 舞台配置、音控台、打卡牆與攝影區
-            syncText('input-stage', 'p-stage', "不需");
-            syncText('input-mixer-loc', 'p-mixer-loc', "未填");
-            syncText('input-backdrop', 'p-backdrop', "否");
-            syncText('input-photo-area', 'p-photo-area', "未規劃");
-
-            // 供配電技術參數
-            syncText('input-amp110', 'p-amp110', "0A");
-            syncText('input-amp220', 'p-amp220', "0A");
-
-            const chkNoExtra = document.getElementById('chk-no-extra-power');
-            const pNoExtra = document.getElementById('p-no-extra-power');
-            if (pNoExtra) {
-                pNoExtra.textContent = (chkNoExtra && chkNoExtra.checked) ? "不須額外配電" : "需廠商拉電線/配電箱";
-            }
-
-            const chkGen = document.getElementById('chk-use-generator');
-            const pUseGen = document.getElementById('p-use-generator');
-            if (pUseGen) {
-                pUseGen.textContent = (chkGen && chkGen.checked) ? "現場允許使用發電機" : "禁止使用發電機";
-            }
-
-            // 動態整理電力查核勾選狀態
-            const pChkList = document.getElementById('p-chk-power-list');
-            if (pChkList) {
-                pChkList.innerHTML = "";
-                appendPreviewCheckbox(pChkList, 'chk-photo-panel', '已拍下現場配電箱/盤照片');
-                appendPreviewCheckbox(pChkList, 'chk-gen-loc', '發電機定位於室外安全防潮處');
-                appendPreviewCheckbox(pChkList, 'chk-license', '確認現場電工具備甲級執照');
-            }
-
-            // 對齊電力描述欄位
-            syncText('input-power', 'p-power-desc', "現場電力尚待進一步詳細確認與評估。");
-
-            // 設備提供
-            const selectedEquips = [];
-            document.querySelectorAll('.equip-checkbox:checked').forEach(cb => {
-                selectedEquips.push(cb.value);
-            });
-            const pEquip = document.getElementById('p-equip');
-            if (pEquip) {
-                pEquip.textContent = selectedEquips.length > 0 ? selectedEquips.join(', ') : "不提供任何硬體 (需自備)";
-            }
-
-            // 設備檢查勾選狀態
-            const pChkEquip = document.getElementById('p-chk-equip-list');
-            if (pChkEquip) {
-                pChkEquip.innerHTML = "";
-                appendPreviewCheckbox(pChkEquip, 'chk-audio-loc', '已拍下音控台/音響中控位置');
-                appendPreviewCheckbox(pChkEquip, 'chk-light-ctrl', '已確認照明與投射燈控制閥位置');
-                appendPreviewCheckbox(pChkEquip, 'chk-socket-loc', '已檢測電源牆面與地面插座位置');
-            }
-
-            // 進撤場物流
-            const chkElevator = document.getElementById('chk-elevator');
-            const pElevator = document.getElementById('p-elevator');
-            if (pElevator) {
-                pElevator.textContent = (chkElevator && chkElevator.checked) ? "🟢 備有貨梯" : "❌ 無貨梯 (需走樓梯/坡道)";
-            }
-
-            syncText('input-unloading-zone', 'p-unloading-zone', "現場未指定卸貨區");
-            syncText('input-time-control', 'p-time-control', "無進撤場時間限制限制");
-
-            // 進撤場查核清單
-            const pChkLogistics = document.getElementById('p-chk-logistics-list');
-            if (pChkLogistics) {
-                pChkLogistics.innerHTML = "";
-                appendPreviewCheckbox(pChkLogistics, 'chk-logistics-dist', '已量測卸貨點到舞台進場搬運長度');
-                appendPreviewCheckbox(pChkLogistics, 'chk-parking-grid', '確認卸貨區可合法當日停車');
-                appendPreviewCheckbox(pChkLogistics, 'chk-elevator-dim', '已核對貨梯門與最高天花板尺寸');
-            }
-
-            // 雨備方案與禁止事項
-            const selectRain = document.getElementById('select-rain');
-            const pRain = document.getElementById('p-rain');
-            if (pRain) {
-                pRain.textContent = selectRain ? selectRain.value : "未選擇";
-            }
-
-            const selectedBans = [];
-            document.querySelectorAll('.ban-checkbox:checked').forEach(cb => {
-                selectedBans.push(cb.value);
-            });
-            const pBan = document.getElementById('p-ban');
-            if (pBan) {
-                pBan.textContent = selectedBans.length > 0 ? selectedBans.join('、') : "無特定禁止事項";
-            }
-
-            // 場地類型多選
-            const selectedTypes = [];
-            document.querySelectorAll('.type-checkbox:checked').forEach(cb => {
-                selectedTypes.push(cb.value);
-            });
-            const pType = document.getElementById('p-type');
-            if (pType) {
-                pType.textContent = selectedTypes.length > 0 ? selectedTypes.join('、') : "未勾選類型";
-            }
-
-            // 綜合評論與結論
-            syncText('input-suggestion', 'p-suggestion', "尚未填寫整體實地勘查結論與改進對策。");
-
-            const inputMatch = document.getElementById('input-match-rate');
-            const pMatchRate = document.getElementById('p-match-rate');
-            if (pMatchRate && inputMatch) {
-                pMatchRate.textContent = inputMatch.value + "%";
-            }
-
-            // 同步動態活動專屬檢核點
-            syncDynamicFieldsToPreview();
-
-            // 更新基礎設施評價燈號與內文樣式
-            updateStatusBadge('status-power', 'p-status-power-badge');
-            updateStatusBadge('status-power', 'p-status-power-badge-inner');
-            updateStatusBadge('status-water', 'p-status-water-badge');
-            updateStatusBadge('status-air', 'p-status-air-badge');
-            updateStatusBadge('status-net', 'p-status-net-badge');
-
-            // 同步安全合規檢核燈號
-            updateCheckboxPreview('chk-fire', 'chk-preview-fire', '消防設備安檢合格');
-            updateCheckboxPreview('chk-exit', 'chk-preview-exit', '安全逃生出口順暢');
-            updateCheckboxPreview('chk-insurance', 'chk-preview-insurance', '具公共意外責任險');
-            updateCheckboxPreview('chk-capacity', 'chk-preview-capacity', '人流管制機制備妥');
-        }
-
-        // 輔助：在預覽中附加勾選清單元件
-        function appendPreviewCheckbox(container, elementId, text) {
-            const checkbox = document.getElementById(elementId);
-            const isChecked = checkbox ? checkbox.checked : false;
-            const item = document.createElement('div');
-            item.className = "flex items-center space-x-1";
-            if (isChecked) {
-                item.innerHTML = `<i class="fa-solid fa-square-check text-[11px]" style="color: var(--sky-blue);"></i> <span style="color: var(--deep-dark); font-weight: 700;">${text}</span>`;
-            } else {
-                item.innerHTML = `<i class="fa-solid fa-square text-slate-200 text-[11px]"></i> <span class="text-slate-300 line-through">${text}</span>`;
-            }
-            container.appendChild(item);
-        }
-
-        // 輔助函式：同步評估下拉選單 (保持標準狀態顏色但外框重塑)
-        function updateStatusBadge(inputId, badgeId) {
-            const selectEl = document.getElementById(inputId);
-            const badge = document.getElementById(badgeId);
-            if (!badge) return;
-            const val = selectEl ? selectEl.value : "良好";
-            if (val === "良好") {
-                badge.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">🟢 良好</span>';
-            } else if (val === "普通") {
-                badge.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800">🟡 普通</span>';
-            } else {
-                badge.innerHTML = '<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800">🔴 有限制</span>';
-            }
-        }
-
-        // 輔助函式：同步安全勾選 (勾選狀態改為天空藍，更和諧一致)
-        function updateCheckboxPreview(checkboxId, previewBoxId, labelText) {
-            const checkbox = document.getElementById(checkboxId);
-            const isChecked = checkbox ? checkbox.checked : false;
-            const pBox = document.getElementById(previewBoxId);
-            if (!pBox) return;
-            if (isChecked) {
-                pBox.innerHTML = `<i class="fa-solid fa-circle-check text-xs" style="color: var(--sky-blue);"></i> <span class="font-bold text-[10px]" style="color: var(--deep-dark);">${labelText}</span>`;
-                pBox.className = "flex items-center space-x-1.5 p-1 rounded border";
-                pBox.style.borderColor = "var(--sky-blue)";
-                pBox.style.backgroundColor = "var(--tint-bg)";
-            } else {
-                pBox.innerHTML = `<i class="fa-solid fa-circle-xmark text-slate-300 text-xs"></i> <span class="text-slate-400 font-normal text-[10px] line-through">${labelText}</span>`;
-                pBox.className = "flex items-center space-x-1.5 p-1 rounded border border-slate-100 bg-slate-50/50";
-                pBox.style.borderColor = "#e2e8f0";
-                pBox.style.backgroundColor = "transparent";
-            }
-        }
-
-        // 當切換模板時，在左側動態繪製表單欄位，並套用數據
-        function loadTemplate(type) {
-            const data = templatesDb[type];
-            if (!data) return;
-
-            // 安全獲取元素並設置值的輔助函式
-            const setVal = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.value = val;
-            };
-
-            const setChecked = (id, state) => {
-                const el = document.getElementById(id);
-                if (el) el.checked = state;
-            };
-
-            // 1. 填入基礎表單
-            setVal('input-project', data.project);
-            setVal('input-location', data.location);
-            setVal('input-surveyor', data.surveyor);
-            setVal('input-date', data.date);
-            setVal('input-contact', data.contact);
-
-            // 空間尺寸
-            setVal('input-capacity-num', data.capacityNum);
-            setVal('input-dim', data.dim);
-            setVal('input-height', data.height);
-
-            // 舞台與打卡牆細節
-            setVal('input-stage', data.stage);
-            setVal('input-backdrop', data.backdrop);
-            setVal('input-mixer-loc', data.mixerLoc);
-            setVal('input-photo-area', data.photoArea);
-
-            // 電力配置
-            setVal('input-amp110', data.amp110);
-            setVal('input-amp220', data.amp220);
-            setChecked('chk-no-extra-power', data.noExtraPower);
-            setChecked('chk-use-generator', data.useGenerator);
-
-            // 電力查核勾選
-            setChecked('chk-photo-panel', data.photoPanel);
-            setChecked('chk-gen-loc', data.genLoc);
-            setChecked('chk-license', data.license);
-
-            // 電力現況文字
-            setVal('input-power', data.power);
-
-            // 設備提供複選框還原
-            document.querySelectorAll('.equip-checkbox').forEach(cb => {
-                cb.checked = data.equips.includes(cb.value);
-            });
-
-            // 設備勾選清單
-            setChecked('chk-audio-loc', data.audioLoc);
-            setChecked('chk-light-ctrl', data.lightCtrl);
-            setChecked('chk-socket-loc', data.socketLoc);
-
-            // 進撤場物流
-            setChecked('chk-elevator', data.elevator);
-            setVal('input-unloading-zone', data.unloadingZone);
-            setVal('input-time-control', data.timeControl);
-
-            // 物流查核
-            setChecked('chk-logistics-dist', data.logisticsDist);
-            setChecked('chk-parking-grid', data.parkingGrid);
-            setChecked('chk-elevator-dim', data.elevatorDim);
-
-            // 雨備與禁止
-            setVal('select-rain', data.rain);
-            document.querySelectorAll('.ban-checkbox').forEach(cb => {
-                cb.checked = data.bans.includes(cb.value);
-            });
-
-            // 場地類型複選框還原
-            document.querySelectorAll('.type-checkbox').forEach(cb => {
-                cb.checked = data.types.includes(cb.value);
-            });
-
-            // 結論
-            setVal('input-suggestion', data.suggestion);
-            
-            const matchInput = document.getElementById('input-match-rate');
-            if (matchInput) {
-                matchInput.value = data.matchRate;
-                updateMatchRateValue(data.matchRate);
-            }
-
-            // 下拉燈號
-            setVal('status-power', data.statusPower);
-            setVal('status-water', data.statusWater);
-            setVal('status-air', data.statusAir);
-            setVal('status-net', data.statusNet);
-
-            // 安全合規
-            setChecked('chk-fire', data.chkFire);
-            setChecked('chk-exit', data.chkExit);
-            setChecked('chk-insurance', data.chkInsurance);
-            setChecked('chk-capacity', data.chkCapacity);
-
-            // 2. 在左側動態渲染專屬檢核點
-            renderDynamicFormFields(data);
-
-            // 3. 重設照片為預設狀態 (匯出不破圖)
-            resetMockImages();
-
-            // 4. 更新預覽
-            updatePreview();
-
-            const typeNames = {
-                outdoor: "🌲 戶外活動",
-                award: "🏆 頒獎典禮",
-                forum: "💬 論壇專屬",
-                market: "🎪 市集專屬"
-            };
-            showToast(`已套用「${typeNames[type]}」高標檢核表！已完美配對您的欄位項目。`);
-        }
-
-        // 重設預覽圖至出廠向量圖狀態 (線條改為 #2BAFF2)
-        function resetMockImages() {
-            const prevLayout = document.getElementById('preview-layout-img');
-            const prevLayoutHolder = document.getElementById('preview-layout-placeholder');
-            if (prevLayout && prevLayoutHolder) {
-                prevLayout.src = "";
-                prevLayout.classList.add('hidden');
-                prevLayoutHolder.classList.remove('hidden');
-            }
-
-            const prevDetail = document.getElementById('preview-detail-img');
-            const prevDetailHolder = document.getElementById('preview-detail-placeholder');
-            if (prevDetail && prevDetailHolder) {
-                prevDetail.src = "";
-                prevDetail.classList.add('hidden');
-                prevDetailHolder.classList.remove('hidden');
-            }
-        }
-
-        // 動態生成左側表單對應的專屬檢核輸入項目
-        function renderDynamicFormFields(data) {
-            const container = document.getElementById('dynamic-form-fields');
-            const title = document.getElementById('dynamic-section-title');
-            
-            if (!container || !title) return;
-
-            const typeLabels = {
-                outdoor: "🌲 戶外活動專屬檢核點 (表單對應)",
-                award: "🏆 頒獎典禮專屬檢核點 (表單對應)",
-                forum: "💬 論壇活動場勘重點表對接",
-                market: "🎪 市集活動場勘重點表對接"
-            };
-
-            title.textContent = typeLabels[data.activityType];
-            container.innerHTML = "";
-
-            Object.keys(data.dynamicFields).forEach((key, index) => {
-                const div = document.createElement('div');
-                div.className = "space-y-1";
-                div.innerHTML = `
-                    <label class="block text-[11px] font-bold uppercase tracking-wider" style="color: var(--deep-dark);">${key}</label>
-                    <input type="text" class="dynamic-input w-full px-2.5 py-1.5 border rounded text-xs focus:ring-1 focus:ring-sky-500" 
-                           style="border-color: var(--sky-blue);" data-key="${key}" value="${data.dynamicFields[key]}" oninput="updatePreview()">
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // 將左側專屬動態欄位即時渲染至 A4 第三頁表格中
-        function syncDynamicFieldsToPreview() {
-            const tableBody = document.getElementById('p-dynamic-activity-table-body');
-            const previewTitle = document.getElementById('p-dynamic-activity-title');
-            const activeTitleEl = document.getElementById('dynamic-section-title');
-            
-            if (!tableBody) return;
-
-            const activeTemplate = activeTitleEl ? activeTitleEl.textContent : "活動類型專屬檢核點";
-            if (previewTitle) {
-                previewTitle.textContent = activeTemplate;
-            }
-
-            tableBody.innerHTML = "";
-
-            const inputs = document.querySelectorAll('.dynamic-input');
-            if (inputs.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="2" class="py-2 px-3 text-slate-400 italic text-center">無專屬類別檢核，可在上方點選「範本」快速展開</td></tr>`;
-                return;
-            }
-
-            inputs.forEach(input => {
-                const key = input.getAttribute('data-key');
-                const val = input.value || "未填寫現況與紀錄";
-                const row = document.createElement('tr');
-                row.className = "hover:bg-slate-50 transition-colors";
-                row.innerHTML = `
-                    <td class="py-2 px-3 font-bold border-r border-slate-200 w-1/3 text-xs" style="color: var(--deep-dark);">${key}</td>
-                    <td class="py-2 px-3 font-bold text-[11px] leading-relaxed" style="color: var(--deep-dark);">${val}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        // 重設表單
-        function resetForm() {
-            const clearVal = (id) => {
-                const el = document.getElementById(id);
-                if (el) el.value = "";
-            };
-
-            clearVal('input-project');
-            clearVal('input-location');
-            clearVal('input-surveyor');
-            clearVal('input-contact');
-            clearVal('input-capacity-num');
-            clearVal('input-dim');
-            clearVal('input-height');
-            clearVal('input-stage');
-            clearVal('input-backdrop');
-            clearVal('input-mixer-loc');
-            clearVal('input-photo-area');
-            clearVal('input-amp110');
-            clearVal('input-amp220');
-            clearVal('input-power');
-            clearVal('input-unloading-zone');
-            clearVal('input-time-control');
-            clearVal('input-suggestion');
-
-            const dateInput = document.getElementById('input-date');
-            if (dateInput) {
-                dateInput.value = new Date().toISOString().split('T')[0];
-            }
-
-            const matchInput = document.getElementById('input-match-rate');
-            if (matchInput) {
-                matchInput.value = 85;
-                updateMatchRateValue(85);
-            }
-
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
-            
-            const setChecked = (id, state) => {
-                const el = document.getElementById(id);
-                if (el) el.checked = state;
-            };
-
-            setChecked('chk-fire', true);
-            setChecked('chk-exit', true);
-            setChecked('chk-insurance', true);
-
-            const dynFields = document.getElementById('dynamic-form-fields');
-            if (dynFields) dynFields.innerHTML = "";
-
-            const dynTitle = document.getElementById('dynamic-section-title');
-            if (dynTitle) dynTitle.textContent = "活動類型專屬檢核點";
-
-            // 清理相片並回歸出廠向量圖狀態
-            const layoutFile = document.getElementById('img-layout');
-            if (layoutFile) layoutFile.value = "";
-            const detailFile = document.getElementById('img-detail');
-            if (detailFile) detailFile.value = "";
-
-            resetMockImages();
-            updatePreview();
-            showToast("所有欄位、查核項目與圖片已完成清空！");
-        }
-
-        // 匯出 A4 高清 PDF
-        function exportToPDF() {
-            const element = document.getElementById('pdf-container');
-            const projectInput = document.getElementById('input-project');
-            const dateInput = document.getElementById('input-date');
-            
-            const projectName = projectInput ? (projectInput.value || "未命名專案") : "未命名專案";
-            const dateStr = dateInput ? (dateInput.value || "無日期") : "無日期";
-            const filename = `專業場勘表_${projectName}_${dateStr}.pdf`;
-
-            const opt = {
-                margin:       0,
-                filename:     filename,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { 
-                    scale: 2, 
-                    useCORS: true, 
-                    allowTaint: true,
-                    logging: false 
-                },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] } // 優化多分頁避免內容截斷
-            };
-
-            showToast("正在為您產生高品質 A4 PDF 報告，請稍候...");
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                showToast("PDF 報告成功導出並開始下載！");
-            }).catch(err => {
-                console.error("PDF Generation Error:", err);
-                showToast("導出 PDF 時發生異常。建議使用您本機的圖片再次匯出。", false);
-            });
-        }
-
-        // 匯出 Word (.doc) 高易讀性報告
-        function exportToWord() {
-            // 抓取當前表單輸入資料
-            const projectName = document.getElementById('input-project')?.value || "未命名專案";
-            const locationName = document.getElementById('input-location')?.value || "未填寫場地名稱與地址";
-            const surveyor = document.getElementById('input-surveyor')?.value || "未填寫";
-            const surveyDate = document.getElementById('input-date')?.value || "YYYY-MM-DD";
-            const contact = document.getElementById('input-contact')?.value || "未填寫";
-            
-            const capacityNum = document.getElementById('input-capacity-num')?.value || "-";
-            const dim = document.getElementById('input-dim')?.value || "-";
-            const height = document.getElementById('input-height')?.value || "-";
-            
-            const amp110 = document.getElementById('input-amp110')?.value || "0A";
-            const amp220 = document.getElementById('input-amp220')?.value || "0A";
-            const chkNoExtra = document.getElementById('chk-no-extra-power')?.checked ? "是 (不須額外配電)" : "否 (需拉設線路)";
-            const chkUseGen = document.getElementById('chk-use-generator')?.checked ? "是 (允許發電機)" : "否";
-            const powerDesc = document.getElementById('input-power')?.value || "電力現況尚無特別說明。";
-
-            const stage = document.getElementById('input-stage')?.value || "不需搭建";
-            const mixerLoc = document.getElementById('input-mixer-loc')?.value || "未規劃";
-            const backdrop = document.getElementById('input-backdrop')?.value || "未規劃";
-            const photoArea = document.getElementById('input-photo-area')?.value || "未規劃";
-
-            const chkElevator = document.getElementById('chk-elevator')?.checked ? "有貨梯" : "無貨梯 (需搬運)";
-            const unloading = document.getElementById('input-unloading-zone')?.value || "未指定";
-            const timeCtrl = document.getElementById('input-time-control')?.value || "無進撤場時間限制";
-
-            // 抓取附加空間
-            const selectedSpaces = [];
-            document.querySelectorAll('.extra-space-checkbox:checked').forEach(cb => selectedSpaces.push(cb.value));
-            const extraSpacesStr = selectedSpaces.length > 0 ? selectedSpaces.join('、') : "無";
-
-            // 抓取限制項目
-            const selectedBans = [];
-            document.querySelectorAll('.ban-checkbox:checked').forEach(cb => selectedBans.push(cb.value));
-            const bansStr = selectedBans.length > 0 ? selectedBans.join('、') : "無特定禁止事項";
-
-            // 抓取基礎設施狀態
-            const statusPower = document.getElementById('status-power')?.value || "良好";
-            const statusWater = document.getElementById('status-water')?.value || "良好";
-            const statusAir = document.getElementById('status-air')?.value || "良好";
-            const statusNet = document.getElementById('status-net')?.value || "良好";
-
-            // 彙整安全合規勾選
-            const hasFire = document.getElementById('chk-fire')?.checked ? "✅ 符合" : "❌ 未確認";
-            const hasExit = document.getElementById('chk-exit')?.checked ? "✅ 符合" : "❌ 未確認";
-            const hasIns = document.getElementById('chk-insurance')?.checked ? "✅ 符合" : "❌ 未確認";
-            const hasCap = document.getElementById('chk-capacity')?.checked ? "✅ 符合" : "❌ 未確認";
-
-            // 動態檢核欄位轉換為 Word 表格行
-            let dynamicFieldsHtml = "";
-            const inputs = document.querySelectorAll('.dynamic-input');
-            inputs.forEach(input => {
-                const key = input.getAttribute('data-key');
-                const val = input.value || "未填寫";
-                dynamicFieldsHtml += `
-                    <tr>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; background-color: #F4F8FC; width: 30%; color: #05090E;">${key}</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1; color: #05090E;">${val}</td>
-                    </tr>
-                `;
-            });
-            if (!dynamicFieldsHtml) {
-                dynamicFieldsHtml = `<tr><td colspan="2" style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; color: #94a3b8;">無專屬類別檢核資料</td></tr>`;
-            }
-
-            const suggestion = document.getElementById('input-suggestion')?.value || "尚未填寫改善策略。";
-            const matchRate = document.getElementById('input-match-rate')?.value || "85";
-
-            // 產生微軟 Word 相容的 HTML 報告模板
-            const wordHtml = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-                <meta charset="utf-8">
-                <title>${projectName} - 場勘報告</title>
-                <style>
-                    body { font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif; color: #05090E; line-height: 1.6; }
-                    h1 { color: #05090E; border-bottom: 2px solid #2BAFF2; padding-bottom: 8px; font-size: 22pt; text-align: center; margin-bottom: 20px; }
-                    h2 { color: #2BAFF2; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px; font-size: 15pt; margin-top: 30px; margin-bottom: 15px; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th { background-color: #05090E; color: #FFFFFF; font-weight: bold; text-align: left; padding: 10px; border: 1px solid #05090E; font-size: 11pt; }
-                    td { padding: 9px 11px; border: 1px solid #cbd5e1; vertical-align: top; font-size: 10pt; }
-                    .meta-label { font-weight: bold; background-color: #F4F8FC; width: 22%; color: #05090E; }
-                    .footer { text-align: center; font-size: 9pt; color: #94a3b8; margin-top: 50px; }
-                </style>
-            </head>
-            <body>
-                <h1>現場勘查成果報告 (SITE SURVEY REPORT)</h1>
-                <p style="text-align: center; font-size: 10pt; color: #64748b;">匯出日期: ${new Date().toLocaleDateString('zh-TW')}</p>
-                
-                <h2>一、 專案基本資訊</h2>
-                <table>
-                    <tr>
-                        <td class="meta-label">專案活動名稱</td>
-                        <td colspan="3" style="font-weight: bold; font-size: 11pt; color: #05090E;">${projectName}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">勘查場地地址</td>
-                        <td colspan="3">${locationName}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">場勘報告人</td>
-                        <td>${surveyor}</td>
-                        <td class="meta-label">場勘日期</td>
-                        <td>${surveyDate}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">場地窗口聯絡</td>
-                        <td colspan="3">${contact}</td>
-                    </tr>
-                </table>
-
-                <h2>二、 空間與供配電技術規格</h2>
-                <table>
-                    <tr>
-                        <td class="meta-label">總容納人數</td>
-                        <td>${capacityNum}</td>
-                        <td class="meta-label">場地尺寸</td>
-                        <td>${dim}</td>
-                        <td class="meta-label">挑高 (米)</td>
-                        <td>${height}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">110V 總電量</td>
-                        <td>${amp110}</td>
-                        <td class="meta-label">220V 總電量</td>
-                        <td>${amp220}</td>
-                        <td class="meta-label">不須額外配電</td>
-                        <td>${chkNoExtra}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">可用發電機</td>
-                        <td colspan="5">${chkUseGen}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">電力與設備現況</td>
-                        <td colspan="5" style="white-space: pre-line;">${powerDesc}</td>
-                    </tr>
-                </table>
-
-                <h2>三、 舞台與會場配置規格</h2>
-                <table>
-                    <tr>
-                        <td class="meta-label">舞台規格尺寸</td>
-                        <td>${stage}</td>
-                        <td class="meta-label">音控台位置</td>
-                        <td>${mixerLoc}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">打卡牆位置</td>
-                        <td>${backdrop}</td>
-                        <td class="meta-label">攝影專區規劃</td>
-                        <td>${photoArea}</td>
-                    </tr>
-                </table>
-
-                <h2>四、 物流動線與基礎設施評價</h2>
-                <table>
-                    <tr>
-                        <td class="meta-label">貨運電梯</td>
-                        <td>${chkElevator}</td>
-                        <td class="meta-label">指定卸貨區</td>
-                        <td>${unloading}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">卸貨管制時段</td>
-                        <td>${timeCtrl}</td>
-                        <td class="meta-label">可用附加空間</td>
-                        <td>${extraSpacesStr}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">限制與管制項目</td>
-                        <td>${bansStr}</td>
-                        <td class="meta-label">雨備計畫</td>
-                        <td>${selectRain}</td>
-                    </tr>
-                </table>
-
-                <h2>五、 基礎設施評價與合規防災</h2>
-                <table>
-                    <tr>
-                        <td class="meta-label">電力評估</td>
-                        <td>${statusPower}</td>
-                        <td class="meta-label">給排水系統</td>
-                        <td>${statusWater}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">空調通風</td>
-                        <td>${statusAir}</td>
-                        <td class="meta-label">通訊 Wi-Fi</td>
-                        <td>${statusNet}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">消防滅火設備</td>
-                        <td>${hasFire}</td>
-                        <td class="meta-label">安全逃生出口</td>
-                        <td>${hasExit}</td>
-                    </tr>
-                    <tr>
-                        <td class="meta-label">公共意外險</td>
-                        <td>${hasIns}</td>
-                        <td class="meta-label">容留人數管制</td>
-                        <td>${hasCap}</td>
-                    </tr>
-                </table>
-
-                <h2>六、 活動類型專屬檢核點</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="background-color: #05090E; color: white;">檢核項目</th>
-                            <th style="background-color: #05090E; color: white;">現場實勘狀況 / 數據紀錄</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${dynamicFieldsHtml}
-                    </tbody>
-                </table>
-
-                <h2>七、 適合度綜合結論評級</h2>
-                <table style="border: 2px solid #2BAFF2;">
-                    <tr>
-                        <td style="padding: 15px; background-color: #F4F8FC; width: 25%; text-align: center; border: 1px solid #cbd5e1;">
-                            <span style="font-size: 9pt; color: #2BAFF2; font-weight: bold; display: block; margin-bottom: 5px;">適合度估值</span>
-                            <strong style="font-size: 22pt; color: #05090E;">${matchRate}%</strong>
-                        </td>
-                        <td style="padding: 15px; font-size: 10.5pt; line-height: 1.6; vertical-align: middle; border: 1px solid #cbd5e1;">
-                            <strong>綜合改善建議與備案策略：</strong><br/>
-                            ${suggestion}
-                        </td>
-                    </tr>
-                </table>
-
-                <div class="footer">
-                    <p>© 專業場勘與專案管理小組 • 本報告由智慧回報系統產生</p>
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        const centroid = getPolygonCentroid(item.points);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'transparent';
+        ctx.fillText(item.label, centroid.x, centroid.y);
+      }
+      
+      ctx.restore();
+    });
+
+    // 繪製進行中的多邊形
+    if (mode === 'draw_polygon' && polygonPoints.length > 0) {
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      polygonPoints.forEach((p, idx) => {
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+      });
+      ctx.lineTo(mousePos.x, mousePos.y);
+      ctx.stroke();
+      ctx.setLineDash([]); 
+
+      if (polygonPoints.length > 2) {
+        ctx.beginPath();
+        ctx.arc(polygonPoints[0].x, polygonPoints[0].y, 6, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
+        ctx.fill();
+      }
+    }
+
+  }, [items, selectedId, mode, polygonPoints, mousePos]);
+
+  const selectedItem = items.find(i => i.id === selectedId);
+
+  return (
+    <div className="h-full flex flex-col bg-slate-100 animate-in fade-in">
+      
+      {/* 頂部工具列 */}
+      <div className="h-14 bg-white border-b px-6 flex justify-between items-center shrink-0">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <MapIcon className="w-5 h-5 text-indigo-600" />
+          平面圖繪製與自訂編輯
+        </h2>
+        <div className="flex gap-2">
+          <button onClick={clearCanvas} className="text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors border">
+            <RotateCcw className="w-4 h-4" /> 重設畫布
+          </button>
+          <button onClick={() => {
+            const link = document.createElement('a');
+            link.download = 'floor_plan.png';
+            link.href = canvasRef.current.toDataURL();
+            link.click();
+          }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+            <Download className="w-4 h-4" /> 匯出圖面
+          </button>
+        </div>
+      </div>
+
+      {/* 核心三欄介面 */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        
+        {/* 左側面板 - 元件庫 */}
+        <div className="w-[280px] bg-white border-r flex flex-col shrink-0 z-10 shadow-sm">
+          {/* 左側 Tabs */}
+          <div className="flex border-b">
+            <button 
+              onClick={() => setLeftTab('library')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 border-b-2 transition-colors ${leftTab === 'library' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}
+            >
+              <LayoutGrid className="w-4 h-4" /> 活動元件庫
+            </button>
+            <button 
+              onClick={() => setLeftTab('custom')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 border-b-2 transition-colors ${leftTab === 'custom' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/30' : 'border-transparent text-gray-500 hover:bg-gray-50'}`}
+            >
+              <PenTool className="w-4 h-4" /> 自訂繪圖/文字
+            </button>
+          </div>
+
+          {/* 左側內容區 */}
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {leftTab === 'library' ? (
+              <div className="space-y-6">
+                {libraryCategories.map(cat => (
+                  <div key={cat.name}>
+                    <h3 className="text-xs font-bold text-gray-400 mb-3 flex items-center gap-2">
+                      <Layers className="w-3 h-3" /> {cat.name}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {cat.items.map(libItem => (
+                        <button
+                          key={libItem.label}
+                          onClick={() => addLibraryItem(libItem)}
+                          className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl hover:border-indigo-400 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+                        >
+                          <div className="group-hover:scale-110 transition-transform">{libItem.icon}</div>
+                          <span className="text-xs font-medium text-gray-700">{libItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <h4 className="font-bold text-blue-800 text-sm mb-2 flex items-center gap-2">
+                    <Edit3 className="w-4 h-4" /> 繪製不規則邊界
+                  </h4>
+                  <p className="text-xs text-blue-600 mb-3 leading-relaxed">
+                    適合繪製畸零地、特殊管制區等。點擊畫布定點，雙擊滑鼠完成閉合。
+                  </p>
+                  <div className="flex gap-2 bg-white p-1 rounded-lg border border-blue-200">
+                    <button 
+                      onClick={() => setMode('select')}
+                      className={`flex-1 flex justify-center py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'select' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      選取模式
+                    </button>
+                    <button 
+                      onClick={() => { setMode('draw_polygon'); setSelectedId(null); }}
+                      className={`flex-1 flex justify-center py-1.5 rounded-md text-sm font-medium transition-all ${mode === 'draw_polygon' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                    >
+                      開始繪製
+                    </button>
+                  </div>
                 </div>
-            </body>
-            </html>
-            `;
+              </div>
+            )}
+          </div>
+        </div>
 
-            // 利用 Blob 將編碼封裝，讓微軟 Word 能順利解碼並維持高可讀性排版
-            const blob = new Blob(['\ufeff' + wordHtml], {
-                type: 'application/msword;charset=utf-8'
-            });
+        {/* 中間面板 - 畫布 */}
+        <div className="flex-1 relative flex items-center justify-center p-6 overflow-hidden">
+          {/* Helper overlay for drawing mode */}
+          {mode === 'draw_polygon' && (
+             <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg z-10 animate-bounce pointer-events-none">
+               正在繪製多邊形：請在畫布上點擊，完成後雙擊滑鼠閉合
+             </div>
+          )}
+          
+          <div className="relative shadow-2xl bg-white border border-gray-300">
+            <canvas 
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onDoubleClick={handleDoubleClick}
+              className={`${mode === 'draw_polygon' ? 'cursor-crosshair' : (draggingId ? 'cursor-grabbing' : 'cursor-pointer')} max-w-full max-h-full object-contain block`}
+            ></canvas>
+          </div>
+        </div>
+
+        {/* 右側面板 - 屬性設定 */}
+        <div className="w-[320px] bg-white border-l flex flex-col shrink-0 z-10 shadow-sm overflow-y-auto">
+          <div className="p-4 border-b bg-gray-50/50">
+            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-gray-500" /> 元件屬性設定
+            </h3>
+          </div>
+
+          {selectedItem ? (
+            <div className="p-5 space-y-6 animate-in slide-in-from-right-2 duration-300">
+              
+              {/* 名稱設定 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-2">自訂元件名稱</label>
+                <input 
+                  type="text" value={selectedItem.label} 
+                  onChange={(e) => updateItem(selectedItem.id, 'label', e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                />
+              </div>
+
+              {/* 尺寸微調 (僅限矩形) */}
+              {selectedItem.type === 'rect' && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-gray-600">佔地尺寸微調</label>
+                    <span className="text-[10px] text-indigo-500 font-medium bg-indigo-50 px-2 py-0.5 rounded-full">1格 = 20px</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block mb-1">寬度(像素)</span>
+                      <div className="flex h-9">
+                        <input 
+                          type="number" value={selectedItem.w} 
+                          onChange={(e) => updateItem(selectedItem.id, 'w', Number(e.target.value))}
+                          className="w-full border border-gray-300 rounded-l-lg px-2 text-sm text-center focus:ring-1 focus:ring-indigo-500 outline-none"
+                        />
+                        <div className="flex flex-col border-y border-r border-gray-300 rounded-r-lg overflow-hidden w-6 shrink-0">
+                          <button onClick={() => updateItem(selectedItem.id, 'w', selectedItem.w + 10)} className="flex-1 bg-gray-50 hover:bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center border-b border-gray-300">+</button>
+                          <button onClick={() => updateItem(selectedItem.id, 'w', Math.max(10, selectedItem.w - 10))} className="flex-1 bg-gray-50 hover:bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center">-</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block mb-1">高度(像素)</span>
+                      <div className="flex h-9">
+                        <input 
+                          type="number" value={selectedItem.h} 
+                          onChange={(e) => updateItem(selectedItem.id, 'h', Number(e.target.value))}
+                          className="w-full border border-gray-300 rounded-l-lg px-2 text-sm text-center focus:ring-1 focus:ring-indigo-500 outline-none"
+                        />
+                        <div className="flex flex-col border-y border-r border-gray-300 rounded-r-lg overflow-hidden w-6 shrink-0">
+                          <button onClick={() => updateItem(selectedItem.id, 'h', selectedItem.h + 10)} className="flex-1 bg-gray-50 hover:bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center border-b border-gray-300">+</button>
+                          <button onClick={() => updateItem(selectedItem.id, 'h', Math.max(10, selectedItem.h - 10))} className="flex-1 bg-gray-50 hover:bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center">-</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 旋轉角度 (僅限矩形) */}
+              {selectedItem.type === 'rect' && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-gray-600">旋轉角度</label>
+                    <span className="text-xs font-bold text-indigo-600">{selectedItem.rotation || 0}°</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="range" min="-180" max="180" step="5"
+                      value={selectedItem.rotation || 0}
+                      onChange={(e) => updateItem(selectedItem.id, 'rotation', Number(e.target.value))}
+                      className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <button onClick={() => updateItem(selectedItem.id, 'rotation', 0)} className="text-[10px] bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-600 font-medium">重設</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 比例縮放 (僅限矩形) */}
+              {selectedItem.type === 'rect' && (
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-gray-600">整體等比例縮放</label>
+                    <span className="text-xs font-bold text-indigo-600">{Math.round((selectedItem.scale || 1) * 100)}%</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="range" min="50" max="200" step="5"
+                      value={(selectedItem.scale || 1) * 100}
+                      onChange={(e) => updateItem(selectedItem.id, 'scale', Number(e.target.value) / 100)}
+                      className="flex-1 accent-indigo-600 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <button onClick={() => updateItem(selectedItem.id, 'scale', 1)} className="text-[10px] bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-600 font-medium">重設</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 主題視覺顏色 */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 mb-3">主題視覺顏色</label>
+                <div className="flex gap-3">
+                  {['#fef3c7', '#fee2e2', '#e0f2fe', '#d1fae5', '#f3e8ff', '#f3f4f6'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => updateItem(selectedItem.id, 'color', color)}
+                      className={`w-7 h-7 rounded-full shadow-sm transition-transform hover:scale-110 ${selectedItem.color === color ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : 'border border-gray-200'}`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => bringToFront(selectedItem.id)} className="flex items-center justify-center gap-2 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    <Layers className="w-4 h-4" /> 置於頂層
+                  </button>
+                  <button onClick={() => duplicateItem(selectedItem.id)} className="flex items-center justify-center gap-2 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors">
+                    <Copy className="w-4 h-4" /> 複製元件
+                  </button>
+                </div>
+                
+                <button onClick={() => deleteItem(selectedItem.id)} className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm font-bold transition-colors">
+                  <Trash2 className="w-4 h-4" /> 刪除此元件
+                </button>
+              </div>
+
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-60">
+              <MousePointer2 className="w-12 h-12 text-gray-400 mb-4" />
+              <p className="text-gray-600 font-medium">請在畫布上點選元件</p>
+              <p className="text-xs text-gray-400 mt-2">點選後即可調整尺寸、顏色與旋轉角度</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportTab() {
+  const [report, setReport] = useState({
+    // 一、基本資訊
+    projectName: '2026 年度品牌發表會',
+    surveyDate: new Date().toISOString().split('T')[0],
+    eventDate: '2026-06-15',
+    venueName: '國際展覽中心 A館',
+    venueAddress: '台北市信義區...',
+    contactInfo: '王經理 0912-345-678',
+    
+    // 二、空間與進撤場動線
+    areaSize: '約 150 坪',
+    ceilingHeight: '4.5 公尺',
+    lowestPoint: '3.8 公尺 (空調管線/灑水頭)',
+    loadingDock: '地下室 B1 卸貨區，限高 2.5m',
+    elevatorSize: '門寬 1.2m / 內寬 2m x 深 3m x 高 2.5m',
+    walkwayWidth: '走道最窄處 1.5m',
+    
+    // 三、機電與網路設備
+    power110V: '壁面四周共 8 組雙孔插座 (15A)',
+    power220V_380V: '舞台左後方有 380V 動力電箱 (需配置專業技師接電)',
+    network: '場地提供付費 Wi-Fi；4G/5G 收訊佳',
+    lighting: '基本堪用，為黃光 (3000K) 軌道燈',
+    
+    // 四、場地規範與安全
+    floorMaterial: '大理石地磚 (全區施工需鋪設保護板)',
+    wallMaterial: '漆面牆 (嚴禁使用雙面膠，僅可使用無痕膠帶)',
+    timeRestriction: '進場: 22:00 後 / 撤場: 12:00 前',
+    fireSafety: '滅火器 4 支，逃生門 2 處 (周邊嚴禁堆放雜物)',
+    otherNotes: '1. 施工人員需配戴工作證、著反光背心。\n2. 場內全面禁菸飲食。'
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setReport(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="p-8 h-full flex flex-col animate-in fade-in print:p-0">
+      
+      {/* Header - Hidden on Print */}
+      <div className="mb-6 flex justify-between items-end print:hidden">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">場勘數據報告</h2>
+          <p className="text-gray-500 mt-2">參考專業展場與活動問卷設計，詳盡記錄各項場地數據，一鍵匯出報告。</p>
+        </div>
+        <button 
+          onClick={handlePrint}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
+        >
+          <Printer className="w-4 h-4" /> 列印 / 存為 PDF
+        </button>
+      </div>
+
+      <div className="flex gap-8 flex-1 min-h-0 print:block">
+        
+        {/* Form Input - Hidden on Print */}
+        <div className="w-[45%] lg:w-[40%] bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-y-auto print:hidden custom-scrollbar">
+          <h3 className="font-bold text-lg text-gray-800 border-b pb-2 mb-6 sticky top-0 bg-white z-10">📝 填寫場勘資料</h3>
+          
+          <div className="space-y-8">
+            {/* 區塊 1 */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-indigo-600 flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-sm">1</span> 基本資訊</h4>
+              <InputGroup label="專案/活動名稱" name="projectName" value={report.projectName} onChange={handleChange} />
+              <div className="grid grid-cols-2 gap-4">
+                <InputGroup label="場勘日期" name="surveyDate" type="date" value={report.surveyDate} onChange={handleChange} />
+                <InputGroup label="預定活動日期" name="eventDate" type="date" value={report.eventDate} onChange={handleChange} />
+              </div>
+              <InputGroup label="場地名稱" name="venueName" value={report.venueName} onChange={handleChange} />
+              <InputGroup label="場地地址" name="venueAddress" value={report.venueAddress} onChange={handleChange} />
+              <InputGroup label="場地聯絡人/電話" name="contactInfo" value={report.contactInfo} onChange={handleChange} />
+            </div>
+
+            <div className="h-px bg-gray-200"></div>
+
+            {/* 區塊 2 */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-indigo-600 flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-sm">2</span> 空間與進撤場動線</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <InputGroup label="預估面積/坪數" name="areaSize" value={report.areaSize} onChange={handleChange} />
+                <InputGroup label="天花板淨高" name="ceilingHeight" value={report.ceilingHeight} onChange={handleChange} />
+              </div>
+              <InputGroup label="最低障礙物高度 (如樑柱/灑水頭)" name="lowestPoint" value={report.lowestPoint} onChange={handleChange} />
+              <TextAreaGroup label="卸貨區位置與限高" name="loadingDock" value={report.loadingDock} onChange={handleChange} />
+              <TextAreaGroup label="進場電梯尺寸 (含門寬)" name="elevatorSize" value={report.elevatorSize} onChange={handleChange} />
+              <InputGroup label="動線最窄處寬度" name="walkwayWidth" value={report.walkwayWidth} onChange={handleChange} />
+            </div>
+
+            <div className="h-px bg-gray-200"></div>
+
+            {/* 區塊 3 */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-indigo-600 flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-sm">3</span> 機電與網路設備</h4>
+              <TextAreaGroup label="一般插座 (110V) 數量與位置" name="power110V" value={report.power110V} onChange={handleChange} />
+              <TextAreaGroup label="動力電箱 (220V/380V) 位置" name="power220V_380V" value={report.power220V_380V} onChange={handleChange} />
+              <InputGroup label="場地燈光狀況" name="lighting" value={report.lighting} onChange={handleChange} />
+              <InputGroup label="網路/手機收訊狀況" name="network" value={report.network} onChange={handleChange} />
+            </div>
+
+            <div className="h-px bg-gray-200"></div>
+
+            {/* 區塊 4 */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-indigo-600 flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-sm">4</span> 場地規範與安全</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <InputGroup label="地板材質 (保護板規範)" name="floorMaterial" value={report.floorMaterial} onChange={handleChange} />
+                <InputGroup label="牆面材質 (黏貼規範)" name="wallMaterial" value={report.wallMaterial} onChange={handleChange} />
+              </div>
+              <InputGroup label="進撤場時間限制" name="timeRestriction" value={report.timeRestriction} onChange={handleChange} />
+              <InputGroup label="消防設施位置" name="fireSafety" value={report.fireSafety} onChange={handleChange} />
+              <TextAreaGroup label="其他特殊規範/備註" name="otherNotes" value={report.otherNotes} onChange={handleChange} rows={4} />
+            </div>
+          </div>
+        </div>
+
+        {/* Print Preview Area - Visible & Fills Screen on Print */}
+        <div className="flex-1 bg-gray-200 rounded-xl overflow-y-auto flex justify-center p-4 print:p-0 print:bg-white print:overflow-visible">
+          
+          {/* A4 Page Simulation */}
+          <div className="bg-white w-[210mm] min-h-[297mm] shadow-lg print:shadow-none p-10 print:p-0 text-gray-900 mx-auto font-sans">
             
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `專業場勘報告_${projectName}_${surveyDate}.doc`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showToast("Word (.doc) 報告成功產生並開始下載！");
-        }
-    </script>
-</body>
-</html>
+            {/* Report Header */}
+            <div className="border-b-[3px] border-indigo-900 pb-4 mb-6 flex justify-between items-end">
+              <div>
+                <h1 className="text-3xl font-black text-slate-900 mb-1">{report.projectName}</h1>
+                <h2 className="text-xl font-bold text-indigo-700 tracking-wider">場地勘查檢核報告</h2>
+              </div>
+              <div className="text-right text-sm text-slate-500">
+                <p>場勘日期：{report.surveyDate}</p>
+                <p>列印日期：{new Date().toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            {/* Basic Info Table */}
+            <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600" /> 基本資訊
+              </h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                <InfoRow label="活動日期" value={report.eventDate} />
+                <InfoRow label="場地聯絡" value={report.contactInfo} />
+                <InfoRow label="場地名稱" value={report.venueName} />
+                <div className="col-span-2">
+                  <InfoRow label="場地地址" value={report.venueAddress} />
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Sections Grid */}
+            <div className="grid grid-cols-1 gap-5">
+              
+              {/* Space Section */}
+              <SectionBox title="📐 空間與進撤場動線" color="blue">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <DetailItem label="預估面積" value={report.areaSize} />
+                  <DetailItem label="天花板淨高" value={report.ceilingHeight} />
+                  <DetailItem label="最低障礙物高度" value={report.lowestPoint} />
+                  <DetailItem label="動線最窄寬度" value={report.walkwayWidth} />
+                  <div className="col-span-2">
+                    <DetailItem label="卸貨區資訊" value={report.loadingDock} />
+                  </div>
+                  <div className="col-span-2">
+                    <DetailItem label="電梯尺寸限制" value={report.elevatorSize} />
+                  </div>
+                </div>
+              </SectionBox>
+
+              {/* Power Section */}
+              <SectionBox title="⚡ 機電、網路與視聽" color="amber">
+                <div className="space-y-4 text-sm">
+                  <DetailItem label="一般插座 (110V)" value={report.power110V} />
+                  <DetailItem label="動力電箱 (220/380V)" value={report.power220V_380V} />
+                  <div className="grid grid-cols-2 gap-6 mt-2">
+                    <DetailItem label="現場燈光" value={report.lighting} />
+                    <DetailItem label="網路狀況" value={report.network} />
+                  </div>
+                </div>
+              </SectionBox>
+
+              {/* Rules Section */}
+              <SectionBox title="🛡️ 場地規範與安全防護" color="rose">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                  <DetailItem label="地板材質與防護" value={report.floorMaterial} />
+                  <DetailItem label="牆面材質與黏貼" value={report.wallMaterial} />
+                  <div className="col-span-2">
+                    <DetailItem label="進撤場時間限制" value={report.timeRestriction} />
+                  </div>
+                  <div className="col-span-2">
+                    <DetailItem label="消防與逃生設施" value={report.fireSafety} />
+                  </div>
+                </div>
+              </SectionBox>
+
+              {/* Notes Section */}
+              <div className="mt-1">
+                <h3 className="text-md font-bold text-slate-800 mb-2 border-l-4 border-slate-400 pl-2">補充備註事項</h3>
+                <div className="bg-white p-3 rounded-lg border-2 border-dashed border-slate-300 min-h-[80px] text-sm text-slate-700 whitespace-pre-wrap">
+                  {report.otherNotes || '無'}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer Signatures */}
+            <div className="mt-8 pt-6 flex justify-end gap-16 text-sm text-slate-600">
+              <div className="text-center">
+                <div className="w-32 border-b border-slate-400 mb-2 h-8"></div>
+                <p>場勘人員簽名</p>
+              </div>
+              <div className="text-center">
+                <div className="w-32 border-b border-slate-400 mb-2 h-8"></div>
+                <p>場地方確認簽名</p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InputGroup({ label, name, value, onChange, type = "text" }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input 
+        type={type} 
+        name={name} 
+        value={value} 
+        onChange={onChange}
+        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-shadow"
+      />
+    </div>
+  );
+}
+
+function TextAreaGroup({ label, name, value, onChange, rows = 2 }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <textarea 
+        name={name} 
+        value={value} 
+        onChange={onChange}
+        rows={rows}
+        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none transition-shadow"
+      />
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex border-b border-slate-200 pb-1.5">
+      <span className="text-slate-500 w-20 font-medium shrink-0">{label}</span>
+      <span className="text-slate-900 font-semibold">{value || '-'}</span>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-slate-500 font-medium text-xs uppercase tracking-wider">{label}</span>
+      <span className="text-slate-900 font-medium whitespace-pre-wrap">{value || '-'}</span>
+    </div>
+  );
+}
+
+function SectionBox({ title, color, children }) {
+  const colorMap = {
+    blue: 'border-blue-200 bg-blue-50/30',
+    amber: 'border-amber-200 bg-amber-50/30',
+    rose: 'border-rose-200 bg-rose-50/30',
+  };
+
+  return (
+    <div className={`border rounded-xl overflow-hidden ${colorMap[color]}`}>
+      <div className={`px-4 py-2 border-b bg-white/50 backdrop-blur-sm`}>
+        <h3 className="font-bold text-slate-800">{title}</h3>
+      </div>
+      <div className="p-4 bg-white/60">
+        {children}
+      </div>
+    </div>
+  );
+}
