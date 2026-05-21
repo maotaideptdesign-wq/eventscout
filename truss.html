@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truss 架構圖 - EventScout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'], } } } }
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+  </style>
+</head>
+<body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function Icon({ name, className = "w-4 h-4" }) {
+      const icons = {
+        home: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
+        box: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>,
+        map: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>,
+        fileText: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>,
+        settings: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+        sun: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>,
+        moon: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" /></svg>,
+        menu: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>,
+        x: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
+        download: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+      };
+      return icons[name] || null;
+    }
+
+    function AppLayout({ activePage, children }) {
+      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+      useEffect(() => {
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      }, [theme]);
+
+      const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+      return (
+        <div className="flex h-screen bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
+          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-20 print:hidden transition-colors duration-300">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+              <Icon name="menu" className="w-6 h-6" />
+            </button>
+            <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-3 h-3 text-white" /></div>
+              EventScout
+            </span>
+            <button onClick={toggleTheme} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+              {theme === 'light' ? <Icon name="moon" className="w-5 h-5" /> : <Icon name="sun" className="w-5 h-5" />}
+            </button>
+          </header>
+
+          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-30 transition-opacity duration-300" />}
+
+          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-40 transition-transform duration-300 print:hidden lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-6 flex items-center justify-between">
+              <h1 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+                <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-4 h-4 text-white" /></div>
+                EventScout
+              </h1>
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="flex-1 px-3 space-y-1 mt-2">
+              <NavItem href="index.html" icon={<Icon name="home" />} label="首頁介紹" isActive={activePage === 'home'} />
+              <div className="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">工作區</div>
+              <NavItem href="truss.html" icon={<Icon name="box" />} label="Truss 架構圖" isActive={activePage === 'truss'} />
+              <NavItem href="floorplan.html" icon={<Icon name="map" />} label="平面圖繪製" isActive={activePage === 'floorplan'} />
+              <NavItem href="report.html" icon={<Icon name="fileText" />} label="場勘報告匯出" isActive={activePage === 'report'} />
+            </nav>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800/50">
+              <button onClick={toggleTheme} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] transition-colors">
+                <span className="font-medium flex items-center gap-2">{theme === 'light' ? <Icon name="moon" /> : <Icon name="sun" />}{theme === 'light' ? '切換深色模式' : '切換淺色模式'}</span>
+              </button>
+              <div className="text-[10px] text-slate-400 dark:text-slate-600 text-center mt-4">&copy; 2026 Event Planner Tool</div>
+            </div>
+          </aside>
+
+          <main className="flex-1 overflow-y-auto relative pt-14 lg:pt-0 print:pt-0 print:w-full print:absolute print:inset-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
+            {children}
+          </main>
+        </div>
+      );
+    }
+
+    function NavItem({ icon, label, isActive, href }) {
+      return (
+        <a href={href} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] hover:text-slate-900 dark:hover:text-slate-200 font-medium'}`}>
+          {icon}<span>{label}</span>
+        </a>
+      );
+    }
+
+    function InputGroup({ label, type = "text", value, onChange }) {
+      return (
+        <div>
+          <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">{label}</label>
+          <input type={type} value={value} onChange={onChange} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 transition-colors" />
+        </div>
+      );
+    }
+
+    function TrussApp() {
+      const canvasRef = useRef(null);
+      const [params, setParams] = useState({ type: 'backdrop', width: 400, height: 300, depth: 50, thickness: 30 });
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const width = 800; const height = 600;
+        canvas.width = width * 2; canvas.height = height * 2;
+        canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+        ctx.scale(2, 2);
+
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = '#1e293b'; ctx.fillStyle = '#1e293b'; ctx.lineWidth = 2;
+        ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+
+        const cx = width / 2; const cy = height / 2;
+        const maxRealDim = Math.max(params.width, params.height);
+        const scale = 400 / maxRealDim; 
+
+        const drawW = params.width * scale; const drawH = params.height * scale; const drawT = params.thickness * scale; 
+        const startX = cx - drawW / 2; const startY = cy - drawH / 2;
+
+        const drawTrussSegment = (x, y, w, h, isVertical) => {
+          ctx.strokeRect(x, y, w, h); ctx.beginPath();
+          if (isVertical) {
+            const segments = Math.floor(h / drawT); const step = h / segments;
+            for (let i = 0; i < segments; i++) {
+              ctx.moveTo(x, y + i * step); ctx.lineTo(x + w, y + i * step + step / 2); ctx.lineTo(x, y + (i + 1) * step);
+            }
+          } else {
+            const segments = Math.floor(w / drawT); const step = w / segments;
+            for (let i = 0; i < segments; i++) {
+              ctx.moveTo(x + i * step, y); ctx.lineTo(x + i * step + step / 2, y + h); ctx.lineTo(x + (i + 1) * step, y);
+            }
+          }
+          ctx.stroke();
+        };
+
+        if (params.type === 'backdrop') {
+          drawTrussSegment(startX, startY, drawW, drawT, false);
+          drawTrussSegment(startX, startY, drawT, drawH, true);
+          drawTrussSegment(startX + drawW - drawT, startY, drawT, drawH, true);
+          ctx.fillStyle = '#64748b'; ctx.fillText('帆布/背板區域', cx, cy); ctx.fillStyle = '#1e293b';
+        } else if (params.type === 'stage') {
+          drawTrussSegment(startX, startY, drawW, drawT, false);
+          drawTrussSegment(startX, startY, drawT, drawH, true);
+          drawTrussSegment(startX + drawW - drawT, startY, drawT, drawH, true);
+          ctx.strokeRect(startX - 20, startY + drawH - drawT, drawW + 40, drawT);
+          ctx.fillRect(startX - 20, startY + drawH - drawT, drawW + 40, drawT);
+          ctx.fillStyle = '#f8fafc'; ctx.fillText('舞台區域', cx, cy + drawH/4); ctx.fillStyle = '#1e293b';
+        }
+
+        const drawDimLine = (x1, y1, x2, y2, text, offset) => {
+          ctx.beginPath();
+          const dx = x2 - x1; const dy = y2 - y1; const len = Math.sqrt(dx*dx + dy*dy);
+          const nx = -dy / len; const ny = dx / len;
+          const px1 = x1 + nx * offset; const py1 = y1 + ny * offset;
+          const px2 = x2 + nx * offset; const py2 = y2 + ny * offset;
+          ctx.moveTo(px1, py1); ctx.lineTo(px2, py2);
+          ctx.moveTo(px1 - nx * 5, py1 - ny * 5); ctx.lineTo(px1 + nx * 5, py1 + ny * 5);
+          ctx.moveTo(px2 - nx * 5, py2 - ny * 5); ctx.lineTo(px2 + nx * 5, py2 + ny * 5);
+          ctx.stroke();
+          ctx.save();
+          ctx.translate((px1+px2)/2 - nx*15, (py1+py2)/2 - ny*15);
+          if (Math.abs(dy) > Math.abs(dx)) { ctx.rotate(-Math.PI/2); }
+          ctx.fillStyle = '#1e293b'; ctx.fillText(text, 0, 5); ctx.restore();
+        };
+
+        drawDimLine(startX, startY + drawH, startX + drawW, startY + drawH, `寬度: ${params.width} cm`, 40);
+        drawDimLine(startX, startY, startX, startY + drawH, `高度: ${params.height} cm`, 40);
+
+        ctx.textAlign = 'left'; ctx.font = 'bold 20px sans-serif';
+        ctx.fillText(params.type === 'backdrop' ? '打卡牆 Truss 結構圖' : '舞台 Truss 結構圖', 40, 50);
+        ctx.font = '14px sans-serif';
+        ctx.fillText(`總寬: ${params.width}cm | 總高: ${params.height}cm | 深度: ${params.depth}cm`, 40, 75);
+        ctx.fillText(`Truss 規格: ${params.thickness}x${params.thickness} cm`, 40, 95);
+        ctx.fillStyle = '#64748b'; ctx.fillText('此圖面僅供示意與尺寸參考，請依現場實際狀況為主。', 40, 115);
+      }, [params]);
+
+      const handleExport = () => {
+        const link = document.createElement('a'); link.download = `truss_blueprint.png`;
+        link.href = canvasRef.current.toDataURL('image/png'); link.click();
+      };
+
+      return (
+        <div className="h-full flex flex-col animate-in fade-in transition-colors">
+          <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex flex-col sm:flex-row justify-between sm:items-center gap-3 shrink-0">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Icon name="box" className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Truss 架構圖繪製</h2>
+            <button onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 shadow-sm transition-colors text-sm">
+              <Icon name="download" /> 匯出白底圖面
+            </button>
+          </div>
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0">
+            <div className="w-full lg:w-80 bg-white dark:bg-[#202024] lg:border-r border-b lg:border-b-0 border-slate-200 dark:border-slate-800 p-6 flex flex-col gap-5 overflow-y-auto custom-scrollbar shrink-0">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">結構類型</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setParams({...params, type: 'backdrop'})} className={`flex-1 py-1.5 rounded-md border text-sm font-medium transition-colors ${params.type === 'backdrop' ? 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/50 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-[#15151A] border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>打卡牆/背板</button>
+                  <button onClick={() => setParams({...params, type: 'stage'})} className={`flex-1 py-1.5 rounded-md border text-sm font-medium transition-colors ${params.type === 'stage' ? 'bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/50 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-[#15151A] border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>舞台主結構</button>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <InputGroup label="總寬度 Width (cm)" type="number" value={params.width} onChange={(e) => setParams({...params, width: Number(e.target.value)})} />
+                <InputGroup label="總高度 Height (cm)" type="number" value={params.height} onChange={(e) => setParams({...params, height: Number(e.target.value)})} />
+                <InputGroup label="深度 Depth/支撐 (cm)" type="number" value={params.depth} onChange={(e) => setParams({...params, depth: Number(e.target.value)})} />
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Truss 規格 (cm)</label>
+                  <select value={params.thickness} onChange={(e) => setParams({...params, thickness: Number(e.target.value)})} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 transition-colors">
+                    <option value={20}>20 x 20 (輕型)</option>
+                    <option value={30}>30 x 30 (標準)</option>
+                    <option value={40}>40 x 40 (重型)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 bg-[#F6F8F9] dark:bg-[#15151A] flex items-center justify-center p-4 sm:p-8 overflow-auto min-h-[350px]">
+              <div className="shadow-lg border border-slate-200 dark:border-slate-800 bg-white max-w-full">
+                <canvas ref={canvasRef} className="max-w-full object-contain block"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AppLayout activePage="truss"><TrussApp /></AppLayout>);
+  </script>
+</body>
+</html>
