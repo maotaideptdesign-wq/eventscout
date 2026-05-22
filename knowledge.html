@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>場勘專業知識資料庫 - EventScout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -11,114 +11,495 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Noto Sans TC', sans-serif; }
+    body { -webkit-tap-highlight-color: transparent; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+    
+    /* 雜誌首字放大樣式 */
+    .drop-cap::first-letter {
+      font-family: 'Playfair Display', 'Noto Sans TC', serif;
+      font-size: 3.5rem;
+      float: left;
+      line-height: 1;
+      padding-right: 0.5rem;
+      font-weight: 900;
+      color: #4f46e5;
+    }
   </style>
 </head>
-<body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 transition-colors duration-300">
+<body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
   <div id="root"></div>
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
 
-    function App() {
-      const [activeTab, setActiveTab] = useState('checklist');
-      const [data, setData] = useState({
-        checklists: [
-          { title: "企業年會/論壇", items: ["16:9 vs 4:3 投影幕比例評估", "場地殘響時間計算與吸音需求", "舞台負載強度檢查", "VIP 休息室出入動線規劃"] },
-          { title: "戶外市集/音樂祭", items: ["單相/三相電力供電配置", "草地負載能力與雨天積水備案", "流動廁所配置比 (人流換算)", "場內垃圾清運路線與動線"] },
-          { title: "展覽/快閃店", items: ["場地壁面釘裝規範與限制", "撤場時程與貨梯進場限制", "夜間施工噪音與規範權限"] }
-        ],
-        blindSpots: [
-          { title: "電力計算學", desc: "音響(W) + 燈光(W) + LED(W) = 總安培(A)。別再讓電力跳電！教你計算負載的基本原理。" },
-          { title: "Rigging 吊點安全", desc: "鋼樑負載上限如何確認？消防逃生通道與存留人數的硬性規定對策。" },
-          { title: "無線訊號評估", desc: "千人活動現場的 Wi-Fi 與 5G 訊號強化策略，訊號衰減的根本原因分析。" }
-        ],
-        cases: [
-          { title: "被遺忘的 2 公分", desc: "因為一個門框高度，30 萬 LED 背板進不了電梯：不可不知的現場貨梯測量細節。", tag: "血淚談" }
-        ]
-      });
-
-      const [newArticle, setNewArticle] = useState({ category: 'checklist', title: '', content: '' });
-
-      const handleUpload = () => {
-        if (!newArticle.title || !newArticle.content) return;
-        
-        setData(prev => {
-          const newData = { ...prev };
-          if (newArticle.category === 'checklist') {
-            newData.checklists.push({ title: newArticle.title, items: newArticle.content.split('\n') });
-          } else if (newArticle.category === 'blindspot') {
-            newData.blindSpots.push({ title: newArticle.title, desc: newArticle.content });
-          } else {
-            newData.cases.push({ title: newArticle.title, desc: newArticle.content, tag: '新文章' });
-          }
-          return newData;
-        });
-        setNewArticle({ category: 'checklist', title: '', content: '' });
+    function Icon({ name, className = "w-4 h-4" }) {
+      const icons = {
+        home: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
+        box: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>,
+        map: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>,
+        fileText: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>,
+        book: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>,
+        settings: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+        sun: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>,
+        moon: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" /></svg>,
+        menu: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>,
+        x: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
+        chevronLeft: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>,
+        chevronRight: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
       };
+      return icons[name] || null;
+    }
+
+    function AppLayout({ activePage, children, theme, toggleTheme }) {
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
       return (
-        <div className="max-w-5xl mx-auto px-6 py-12">
-          <header className="mb-12 text-center">
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-4">場勘專業知識資料庫</h1>
-            <p className="text-slate-600 dark:text-slate-400">從硬體盲點到實戰避坑，為專業活動人打造的技術字典。</p>
+        <div className="flex h-screen bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
+          
+          {/* 行動端頂部導覽列 */}
+          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-40 transition-colors duration-300">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+              <Icon name="menu" className="w-6 h-6" />
+            </button>
+            <a href="index.html" className="font-bold text-slate-900 dark:text-white flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-3 h-3 text-white" /></div>
+              EventScout
+            </a>
+            <button onClick={toggleTheme} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+              {theme === 'light' ? <Icon name="moon" className="w-5 h-5" /> : <Icon name="sun" className="w-5 h-5" />}
+            </button>
           </header>
 
-          {/* 管理後台區塊 */}
-          <div className="bg-slate-100 dark:bg-[#202024] p-6 rounded-2xl mb-12 border border-slate-200 dark:border-slate-800">
-            <h2 className="text-lg font-bold mb-4">＋ 新增知識文章</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <select className="p-2 rounded-lg bg-white dark:bg-[#15151A] border" value={newArticle.category} onChange={(e) => setNewArticle({...newArticle, category: e.target.value})}>
-                <option value="checklist">究極檢核表</option>
-                <option value="blindspot">硬體法規盲點</option>
-                <option value="cases">實戰避坑</option>
-              </select>
-              <input placeholder="標題" className="p-2 rounded-lg bg-white dark:bg-[#15151A] border" value={newArticle.title} onChange={(e) => setNewArticle({...newArticle, title: e.target.value})} />
-              <textarea placeholder="內容 (若是檢核表，請以換行分隔)" className="md:col-span-2 p-2 rounded-lg bg-white dark:bg-[#15151A] border h-24" value={newArticle.content} onChange={(e) => setNewArticle({...newArticle, content: e.target.value})}></textarea>
-              <button onClick={handleUpload} className="md:col-span-2 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700">發佈更新</button>
-            </div>
-          </div>
+          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300" />}
 
-          <div className="flex gap-2 mb-8 justify-center">
-            {['checklist', 'blindspot', 'cases'].map((t) => (
-              <button key={t} onClick={() => setActiveTab(t)} className={`px-6 py-2 rounded-full font-bold transition ${activeTab === t ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#202024] hover:bg-slate-200'}`}>
-                {t === 'checklist' ? '究極檢核表' : t === 'blindspot' ? '硬體法規盲點' : '實戰避坑'}
+          {/* 側邊欄 */}
+          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-50 transition-transform duration-300 print:hidden lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-6 flex items-center justify-between">
+              <a href="index.html" className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white hover:opacity-80 transition-opacity">
+                <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-4 h-4 text-white" /></div>
+                EventScout
+              </a>
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
+                <Icon name="x" className="w-5 h-5" />
               </button>
-            ))}
-          </div>
+            </div>
+            
+            <nav className="flex-1 px-3 space-y-1 mt-2">
+              <NavItem href="index.html" icon={<Icon name="home" />} label="首頁介紹" isActive={activePage === 'home'} />
+              <NavItem href="knowledge.html" icon={<Icon name="book" />} label="場勘專業知識庫" isActive={activePage === 'knowledge'} />
+              <div className="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">工作區</div>
+              <NavItem href="truss.html" icon={<Icon name="box" />} label="Truss 架構圖" isActive={activePage === 'truss'} />
+              <NavItem href="floorplan.html" icon={<Icon name="map" />} label="平面圖繪製" isActive={activePage === 'floorplan'} />
+              <NavItem href="report.html" icon={<Icon name="fileText" />} label="場勘報告匯出" isActive={activePage === 'report'} />
+            </nav>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800/50">
+              <button onClick={toggleTheme} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] transition-colors">
+                <span className="font-medium flex items-center gap-2">
+                  {theme === 'light' ? <Icon name="moon" /> : <Icon name="sun" />}
+                  {theme === 'light' ? '切換深色模式' : '切換淺色模式'}
+                </span>
+              </button>
+              <div className="text-[10px] text-slate-400 dark:text-slate-600 text-center mt-4">&copy; 2026 Event Planner Tool</div>
+            </div>
+          </aside>
 
-          <div className="grid gap-6">
-            {activeTab === 'checklist' && data.checklists.map((c, i) => (
-              <div key={i} className="bg-white dark:bg-[#202024] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                <h3 className="text-xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">{c.title}</h3>
-                <ul className="grid sm:grid-cols-2 gap-3">
-                  {c.items.map((item, j) => <li key={j} className="flex items-center gap-2 text-sm"><span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>{item}</li>)}
-                </ul>
-              </div>
-            ))}
-
-            {activeTab === 'blindspot' && data.blindSpots.map((b, i) => (
-              <div key={i} className="bg-white dark:bg-[#202024] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 hover:border-indigo-500 transition">
-                <h3 className="text-xl font-bold mb-2">{b.title}</h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm">{b.desc}</p>
-              </div>
-            ))}
-
-            {activeTab === 'cases' && data.cases.map((c, i) => (
-              <div key={i} className="bg-indigo-900 text-white p-8 rounded-2xl">
-                <span className="text-xs bg-indigo-500 px-3 py-1 rounded-full uppercase">{c.tag}</span>
-                <h3 className="text-2xl font-bold my-4">{c.title}</h3>
-                <p className="text-indigo-200 mb-6">{c.desc}</p>
-                <button className="bg-white text-indigo-900 px-6 py-2 rounded-lg font-bold">閱讀完整故事</button>
-              </div>
-            ))}
-          </div>
+          <main className="flex-1 overflow-y-auto relative pt-14 lg:pt-0 print:pt-0 print:w-full print:absolute print:inset-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
+            {children}
+          </main>
         </div>
       );
     }
 
+    function NavItem({ icon, label, isActive, href }) {
+      return (
+        <a href={href} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] hover:text-slate-900 dark:hover:text-slate-200 font-medium'}`}>
+          {icon}<span>{label}</span>
+        </a>
+      );
+    }
+
+    function KnowledgeApp() {
+      // 根據現場勘查實戰指南與夥伴細節備忘錄重新組織與增厚的所有文章
+      const pages = [
+        {
+          id: 'editorial',
+          chapter: '📌 卷首語',
+          title: '場勘，是為了讓現場沒有意外',
+          tag: '編輯的話',
+          content: [
+            { type: 'paragraph', text: '夥伴，歡迎來到專案執行的最前線。場勘不是走馬看花，而是為了給後續的設計、工程與行政團隊最真實的依據。在表格的數據之外，更有許多「隱形成本」藏在細節裡。這本手冊結合了公司多年來的實戰重點，希望能成為你在現場最強大的後援。' },
+            { type: 'quote', text: '「表格上的數字會說謊，但你的捲尺與雙眼不會。」' },
+            { type: 'paragraph', text: '在場勘的世界裡，平面圖只是一個「理想」，而現場則是「現實」。這一章我們要談的，是如何從冰冷的結構中，讀出活動當天的溫度。確保我們帶給客戶與與會者的，是兼具安全、精確與完美品質的頂級活動體驗。' }
+          ]
+        },
+        {
+          id: 'ch1_1',
+          chapter: '🛠️ 第一章：空間與結構的「誠實」測量',
+          title: '垂直空間的生存法則：最低高度與視線死角',
+          tag: '空間測量',
+          content: [
+            { type: 'paragraph', text: '場地合約上寫著「挑高 4 米」，但你一定要親手拉開捲尺。真正限制舞台背板高度的，往往不是天花板，而是樑柱、冷氣管線、或是那盞華麗卻低垂的吊燈。請務必測量「淨高」（Clear Height），也就是從地板到障礙物最低點的距離。' },
+            { type: 'paragraph', text: '特別是在「論壇課程」中，請親自坐到最後一排、最側邊的角落。看看現場是否有任何壯碩的柱子或低垂物件擋住螢幕？如果有，這就是我們必須調整座位配置，或增加側投影、補強液晶螢幕的根本原因。' },
+            { type: 'tip', text: '📸 叮嚀：拍照存檔時，請找一位夥伴站在預定舞台區當作比例尺，這樣後端設計師才能一眼掌握真實空間比例。' }
+          ]
+        },
+        {
+          id: 'ch1_2',
+          chapter: '🛠️ 第一章：空間與結構的「誠實」測量',
+          title: '地面的尊嚴：地面材質、防護與心理戰休息室',
+          tag: '地面與休息室',
+          content: [
+            { type: 'paragraph', text: '舞台與結構是活動的骨架，但若傷了場地的地板，那代價可能是整場活動的利潤。場勘時必須確認地面材質：是大理石地磚、地毯還是拋光石英磚？不同的地面決定了是否必須編列預算鋪設地毯與耐重保護板。如果是草地或戶外，則要觀察平整度、排水性，並設想防泥濘雨備。' },
+            { type: 'paragraph', text: '此外，一場成功的論壇，取決於講師上台前的心情。休息室不是儲藏室，它是講師的「充電站」。在場勘時請務必實地檢驗休息室。檢查隔音狀況是否優良、空調是否有獨立溫控，並觀察是否有獨立的飲水、大落地鏡，以及一張能舒適準備講義的辦公桌。' },
+            { type: 'tip', text: '🛋️ 叮嚀：特別注意休息室到洗手間的動線。別讓講師在開講前，還得頂著妝髮穿越層層排隊的學員人群去上廁所。' }
+          ]
+        },
+        {
+          id: 'ch1_3',
+          chapter: '🛠️ 第一章：空間與結構的「誠實」測量',
+          title: '貴賓動線與容納人數的真相',
+          tag: 'VIP 規劃',
+          content: [
+            { type: 'paragraph', text: '若活動將邀請立法委員、部會長官及企業高層，他們的動線需與一般來賓/媒體完全區隔，確保隱私與安全。確認從專屬停車區/下車點到貴賓休息室，以及從休息室到舞台/主賓席的移動路線，是否能避開一般人流與混亂的進場區。' },
+            { type: 'paragraph', text: '另外，場勘表上寫的「可容納 100 人」，通常是指「塞滿」的狀態。在設計動線時，請扣除走道寬度與逃生動線。請記得，我們要提供的是讓學員感到舒適的「空間感」，而不是極限挑戰的「擁擠感」。' },
+            { type: 'quote', text: '「場勘時，我習慣閉上眼睛一分鐘，想像現場人流走動的聲音與熱氣。如果連你現在站在這裡都覺得壓迫，那活動當天一定會出問題。」' }
+          ]
+        },
+        {
+          id: 'ch2_1',
+          chapter: '⚡ 第二章：電力與影音的「穩定」核心',
+          title: '配電的專業門檻：總安培計算、發電機與證照',
+          tag: '機電安全',
+          content: [
+            { type: 'paragraph', text: '很多場地會說「我們有電」，但我們要問的是「有多少電？誰來接電？」。拍配電盤不只是為了記錄，是為了讓後端的工程老師確認總安培數（A）是否足以負荷音響、燈光或市集的大型耗電設備。請分別確認 110V（一般設備）與 220V（重型機具）的可用量。' },
+            { type: 'paragraph', text: '某些政府或專業展場有硬性規定，若需從配電盤額外拉電，必須具備甲級電工執照的人員才能動手。這點如果場勘沒確認，進場當天可能會被場館主管直接勒令停工。' },
+            { type: 'tip', text: '🔌 叮嚀：如果是露天市集，發電機要放哪？要離攤位多遠才不會有噪音與廢氣？這些都要在現場先標記好。' }
+          ]
+        },
+        {
+          id: 'ch2_2',
+          chapter: '⚡ 第二章：電力與影音的「穩定」核心',
+          title: '影音設備相容性與現代網路評估',
+          tag: '通訊與影音',
+          content: [
+            { type: 'paragraph', text: '活動當天，講師要在台上等工作人員換轉接頭，那是最漫長的幾秒鐘。投影機是舊款的 VGA、常見的 HDMI，還是最新的 Type-C？別只聽窗口說，請親自看一眼接口的狀況。' },
+            { type: 'paragraph', text: '在現今的活動中，斷網幾乎等同於斷電。現場 Wi-Fi 能支撐多少人同時連線？市集攤商要掃 QR Code 結帳、學員要滑手機。請務必跟場方確認是否有「講師專用網路」。' },
+            { type: 'tip', text: '📶 叮嚀：直播或雲端示範需求，別依賴 Wi-Fi，請確認是否有穩定的實體網路線插孔。尤其在封閉式倉庫或地下室，手機訊號通常很差，網路配置會直接決定活動成敗。' }
+          ]
+        },
+        {
+          id: 'ch3_1',
+          chapter: '🚚 第三章：物流與動線的「順暢」基本功',
+          title: '消失的進場距離、貨梯實測與垃圾排水',
+          tag: '物流管理',
+          content: [
+            { type: 'paragraph', text: '很多時候，場地窗口會告訴你「有卸貨區」，但沒告訴你從卸貨區到會場要走 500 公尺。請親自走一遍卸貨動線。是否有台階？是否有斜坡？這決定了我們需要多少人力來推重物。' },
+            { type: 'paragraph', text: '進入貨梯，別只看載重，請實測內徑高與寬。如果我們要進 2.4 米的背板，貨梯卻只有 2.1 米，當天就會發生悲劇。針對餐飲市集，找出廢水排放口。是否有截油設施？這關乎到我們對環境的尊重與場館的合約責任。' },
+            { type: 'quote', text: '「我場勘時一定會親自推一次現場的推車。如果推車連在平地都會卡住，我當晚就會回報公司，進場當天要自備氣胎輪推車。」' }
+          ]
+        },
+        {
+          id: 'ch4_1',
+          chapter: '⛈️ 第四章：環境與安全的「備案」思維',
+          title: '雨天備案防線、噪音法規與保險覆蓋安全',
+          tag: '應變計畫',
+          content: [
+            { type: 'paragraph', text: '在戶外，水能載舟，也能覆舟。市集積水風險不是填填而已。觀察排水孔是否塞滿落葉？地面磁磚是否平整？只要有一處低窪，大雨時那裡就是一個水坑，足以毀掉一個攤商的整天努力。尤其要注意電線接頭。雨天時，所有的電力配線都必須離開地面或做好高強度絕緣，這點在場勘時就要先確認。' },
+            { type: 'paragraph', text: '在室內，溫度的微調權也是關鍵。站在座位區，抬頭看空調出風口。如果直吹講師或學員頭頂，這場活動的滿意度就先扣了一半。請確認溫度是否可分區調控。此外，靜下心聽，隔壁會議室或牆外是否有嘈雜的施工聲、抽水馬達聲？這會影響錄影與收音品質，必須提前準備隔音或調整收音設備。' },
+            { type: 'paragraph', text: '法規與保險部分，確認市集活動是否禁明火？音樂音量是否有分貝管制？噪音管制時間通常是晚上 10 點，但有些學區或住宅區更嚴格，這點沒確認清楚，警察一來活動就得喊停。現場公共意外險範圍到哪？是否涵蓋我們的施工人員？這關乎到發生意外時責任歸屬的根本原因。' }
+          ]
+        }
+      ];
+
+      // 初始化 Checklist 狀態，儲存在 localStorage 確保夥伴在現場場勘不會遺失勾選狀態
+      const [checklistState, setChecklistState] = useState(() => {
+        const local = localStorage.getItem('knowledge_checklist');
+        return local ? JSON.parse(local) : {
+          '📸 影像存檔類': { '全景照：站在空間四個角落（或市集場地中心）各拍一張，記錄空間感。': false, '細節照：配電盤（需拍到標籤數據）、音控台接口、舞台預定地。': false, '基礎設施：貨梯內部（包含操作面板）、洗手間（確認維護狀況與數量）。': false, '關鍵標示：消防栓、滅火器、逃生出口指示燈的位置。': false },
+          '📏 數據核實類': { '淨高數據：樑下高度、吊燈或管線最低點是否已實測？': false, '門口尺寸：貨物進場必經的所有門框寬度、高度是否已記錄？': false, '電力規格：現場 110V/220V/380V 的總安培數（A）是否寫在表單上了？': false },
+          '🌐 訊號與體感類': { '訊號強度：實測手機 4G/5G 訊號（尤其是地下室或偏遠市集區域）。': false, 'Wi-Fi 實測：現場 Wi-Fi 的上傳與下載速度是否足以支撐直播或電子支付？': false, '體感預演：親自坐在後排側邊，確認視線是否被柱子擋住？冷氣出風口是否會直吹頭頂？': false },
+          '🚚 運輸與環境類': { '動線實走：卸貨區到會場的斜坡、台階數量是否記錄？（決定推車種類與人力）': false, '垃圾與排水：垃圾集中點在哪？市集攤位附近的排水孔是否有淤塞風險？': false, '管制規則：噪音管制時間、明火限制、地板保護要求是否已向場方確認？': false },
+          '⛈️ 應變備案類': { '雨天對策：安全雨天配套、遮雨棚架搭建位置是否已規劃？': false, '電力中斷：若需租借發電機，現場是否有合適的擺放空地？': false, '救護動線：萬一有人受傷，救護車能停靠的最快位置與擔架動線。': false },
+          '🤝 關係確認類': { '聯繫窗口：當天現場值班人員的聯絡方式、警衛室位置。': false, '法規門檻：若需配電，是否需具備「甲級電工執照」的人員操作？': false, '復原標準：與場地方確認活動結束後，對於展區復原的具體要求。': false }
+        };
+      });
+
+      // 當前閱讀頁面索引
+      const [currentPageIdx, setCurrentPageIdx] = useState(0);
+      const [fontSize, setFontSize] = useState(16); // 預設 16px，文字絕對 >= 12px
+      const [mobileSubTab, setMobileSubTab] = useState('reader'); // 行動端分頁控制: 'directory' | 'reader'
+
+      useEffect(() => {
+        localStorage.setItem('knowledge_checklist', JSON.stringify(checklistState));
+      }, [checklistState]);
+
+      // 勾選清單動作
+      const handleCheck = (category, item) => {
+        setChecklistState(prev => {
+          const next = { ...prev };
+          next[category][item] = !next[category][item];
+          return next;
+        });
+      };
+
+      // 導航跳轉輔助
+      const handlePageSelect = (idx) => {
+        setCurrentPageIdx(idx);
+        setMobileSubTab('reader'); // 點選目錄後自動切換至閱讀器
+      };
+
+      return (
+        <div className="h-full flex flex-col lg:flex-row bg-[#F6F8F9] dark:bg-[#15151A] overflow-hidden">
+          
+          {/* RWD 行動端專用：雙分頁切換按鈕（桌機 lg 隱藏） */}
+          <div className="lg:hidden bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex gap-1 shrink-0 z-10">
+            <button 
+              onClick={() => setMobileSubTab('directory')} 
+              className={`flex-1 py-2 rounded-md text-xs font-bold text-center border transition-all ${mobileSubTab === 'directory' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200' : 'border-transparent text-slate-500'}`}
+            >
+              📖 手冊目錄
+            </button>
+            <button 
+              onClick={() => setMobileSubTab('reader')} 
+              className={`flex-1 py-2 rounded-md text-xs font-bold text-center border transition-all ${mobileSubTab === 'reader' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200' : 'border-transparent text-slate-500'}`}
+            >
+              📄 閱讀內容
+            </button>
+          </div>
+
+          {/* 左側：電子雜誌目錄與設定面板 */}
+          <div className={`
+            w-full lg:w-80 bg-white dark:bg-[#202024] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 
+            flex-col shrink-0 overflow-y-auto custom-scrollbar
+            ${mobileSubTab === 'directory' ? 'flex' : 'hidden lg:flex'}
+          `}>
+            
+            {/* 雜誌刊頭資訊 */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800/80">
+              <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 tracking-widest uppercase">EventScout Publication</span>
+              <h2 className="text-xl font-black mt-1 text-slate-900 dark:text-white">場勘實戰特刊</h2>
+              <p className="text-xs text-slate-400 mt-1">互動式現場決策電子備忘誌</p>
+            </div>
+
+            {/* 雜誌排版字型大小微調控制區 */}
+            <div className="p-4 bg-slate-50 dark:bg-[#1A1A1E] border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">閱讀字型大小</span>
+              <div className="flex gap-1.5">
+                {[
+                  { label: '標準', size: 16 },
+                  { label: '中大', size: 18 },
+                  { label: '特大', size: 20 }
+                ].map(f => (
+                  <button
+                    key={f.size}
+                    onClick={() => setFontSize(f.size)}
+                    className={`px-2 py-1 text-xs font-bold rounded transition-all ${fontSize === f.size ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#25252A] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 實體目錄導覽 */}
+            <div className="p-4 flex-1">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">手冊目錄索引</span>
+              </div>
+
+              <div className="space-y-1">
+                {pages.map((page, idx) => (
+                  <button
+                    key={page.id}
+                    onClick={() => handlePageSelect(idx)}
+                    className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1 ${currentPageIdx === idx ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30' : 'hover:bg-slate-50 dark:hover:bg-[#2A2B30]/50 border border-transparent'}`}
+                  >
+                    <span className="text-[10px] font-bold opacity-60 uppercase">{page.chapter}</span>
+                    <span className="text-xs font-bold leading-tight line-clamp-1">{page.title}</span>
+                  </button>
+                ))}
+                
+                {/* 獨立附錄：檢核清單 */}
+                <button
+                  onClick={() => handlePageSelect(pages.length)}
+                  className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1 ${currentPageIdx === pages.length ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30' : 'hover:bg-slate-50 dark:hover:bg-[#2A2B30]/50 border border-transparent'}`}
+                >
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">📝 附錄：究極檢核清單</span>
+                  <span className="text-xs font-bold leading-tight">實戰現場檢核備忘表 (可互動勾選)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 右側：精美電子雜誌閱讀器 */}
+          <div className={`
+            flex-1 flex-col bg-[#F3F4F6] dark:bg-[#111115] overflow-hidden p-4 sm:p-8
+            ${mobileSubTab === 'reader' ? 'flex' : 'hidden lg:flex'}
+          `}>
+            <div className="flex-1 max-w-3xl w-full mx-auto bg-white dark:bg-[#1E1E22] rounded-3xl shadow-xl border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden">
+              
+              {/* 雜誌頂部資訊欄 */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 shrink-0">
+                <span className="font-mono">VOL. 01 / PAGE {currentPageIdx + 1} OF {pages.length + 1}</span>
+                <span className="font-mono">EVTSCOUT JOURNAL</span>
+              </div>
+
+              {/* 核心閱讀區 */}
+              <div className="flex-1 overflow-y-auto p-6 sm:p-10 custom-scrollbar relative">
+                {currentPageIdx < pages.length ? (
+                  // 文章頁面
+                  <article className="space-y-6">
+                    <div className="space-y-2">
+                      <span className="inline-block bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-full text-xs font-bold">
+                        {pages[currentPageIdx].tag}
+                      </span>
+                      <h1 className="text-2xl sm:text-3.5xl font-black text-slate-900 dark:text-white leading-tight">
+                        {pages[currentPageIdx].title}
+                      </h1>
+                      {/* 移除撰文者後的單純章節資訊欄 */}
+                      <div className="flex items-center gap-3 pt-2 text-xs text-slate-400">
+                        <span>{pages[currentPageIdx].chapter}</span>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-slate-100 dark:bg-slate-800/80 my-6"></div>
+
+                    {/* 內文渲染 */}
+                    <div 
+                      className="space-y-5 leading-relaxed text-slate-700 dark:text-slate-300"
+                      style={{ fontSize: `${fontSize}px` }}
+                    >
+                      {pages[currentPageIdx].content.map((block, bIdx) => {
+                        if (block.type === 'quote') {
+                          return (
+                            <blockquote key={bIdx} className="border-l-4 border-indigo-600 dark:border-indigo-400 pl-4 py-1 my-6 italic text-slate-900 dark:text-white font-serif bg-slate-50 dark:bg-[#25252A] rounded-r-lg pr-4">
+                              {block.text}
+                            </blockquote>
+                          );
+                        } else if (block.type === 'tip') {
+                          return (
+                            <div key={bIdx} className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl text-emerald-800 dark:text-emerald-300 font-medium">
+                              {block.text}
+                            </div>
+                          );
+                        } else {
+                          // 首段套用 Drop Cap 雜誌排版
+                          const isFirstParagraph = bIdx === 0;
+                          return (
+                            <p 
+                              key={bIdx} 
+                              className={isFirstParagraph ? 'drop-cap text-justify' : 'text-justify'}
+                            >
+                              {block.text}
+                            </p>
+                          );
+                        }
+                      })}
+                    </div>
+                  </article>
+                ) : (
+                  // 附錄：可互動勾選的檢核表
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <span className="inline-block bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
+                        實戰備忘
+                      </span>
+                      <h1 className="text-2xl sm:text-3.5xl font-black text-slate-900 dark:text-white leading-tight">
+                        📝 究極現場檢核備忘表
+                      </h1>
+                      <p className="text-xs text-slate-400">離開現場前，請放下捲尺，花 5 分鐘給自己與團隊一份安心。（已勾選狀態將自動暫存）</p>
+                    </div>
+
+                    <div className="h-px bg-slate-100 dark:bg-slate-800/80 my-6"></div>
+
+                    <div className="space-y-8" style={{ fontSize: `${fontSize}px` }}>
+                      {Object.keys(checklistState).map((category, catIdx) => (
+                        <div key={catIdx} className="space-y-3">
+                          <h3 className="text-sm font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">
+                            {category}
+                          </h3>
+                          <div className="space-y-2">
+                            {Object.keys(checklistState[category]).map((item, itemIdx) => {
+                              const isChecked = checklistState[category][item];
+                              return (
+                                <label 
+                                  key={itemIdx}
+                                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isChecked ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-200 dark:border-emerald-500/20 text-slate-500 dark:text-slate-400 line-through' : 'bg-white dark:bg-[#1E1E22] border-slate-200 dark:border-slate-800 hover:border-slate-300'}`}
+                                >
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isChecked}
+                                    onChange={() => handleCheck(category, item)}
+                                    className="mt-1 w-4 h-4 rounded text-emerald-600 bg-slate-100 border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0"
+                                  />
+                                  <span className="text-xs sm:text-sm font-medium leading-relaxed">{item}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 雜誌底部翻頁按鈕 */}
+              <div className="px-6 py-4 bg-slate-50 dark:bg-[#202024] border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between shrink-0">
+                <button
+                  onClick={() => setCurrentPageIdx(p => Math.max(0, p - 1))}
+                  disabled={currentPageIdx === 0}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-[#2A2B30] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  <Icon name="chevronLeft" className="w-4 h-4" /> 上一頁
+                </button>
+
+                <div className="hidden sm:block text-xs font-mono text-slate-400">
+                  {Math.round(((currentPageIdx + 1) / (pages.length + 1)) * 100)}% 閱讀進度
+                </div>
+
+                <button
+                  onClick={() => setCurrentPageIdx(p => Math.min(pages.length, p + 1))}
+                  disabled={currentPageIdx === pages.length}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-[#2A2B30] border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                >
+                  下一頁 <Icon name="chevronRight" className="w-4 h-4" />
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      );
+    }
+
+    // 整合全域 Layout
+    function RootApp() {
+      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+      
+      useEffect(() => {
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      }, [theme]);
+
+      const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+      return (
+        <AppLayout activePage="knowledge" theme={theme} toggleTheme={toggleTheme}>
+          <KnowledgeApp />
+        </AppLayout>
+      );
+    }
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<RootApp />);
   </script>
 </body>
 </html>
