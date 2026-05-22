@@ -6,7 +6,17 @@
   <title>專業尺寸換算機 - EventScout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans TC', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] } } } }
+    tailwind.config = { 
+      darkMode: 'class', 
+      theme: { 
+        extend: { 
+          fontFamily: { 
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'], 
+            mono: ['JetBrains Mono', 'monospace'] 
+          } 
+        } 
+      } 
+    }
   </script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -18,40 +28,43 @@
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
-    /* 計算機數位字體發光效果 */
-    .digital-display {
-      text-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
-    }
+    .digital-display { text-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
   </style>
 </head>
 <body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
   <div id="root"></div>
+
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // --- 核心圖示元件區 ---
     function Icon({ name, className = "w-4 h-4" }) {
-      const icons = {
-        home: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>,
-        box: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>,
-        map: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>,
-        fileText: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></svg>,
-        book: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>,
-        calculator: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>,
-        settings: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
-        sun: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>,
-        moon: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" /></svg>,
-        menu: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>,
-        x: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>,
-        monitor: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>,
-        projector: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><circle cx="9" cy="12" r="2"></circle><line x1="15" y1="11" x2="17" y2="11"></line><line x1="15" y1="13" x2="17" y2="13"></line></svg>,
-        printer: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>,
-        users: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
-        lightbulb: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6" /><path d="M10 22h4" /><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .34 2.02 1.5 3.5.76.75 1.23 1.51 1.41 2.5" /></svg>
+      const paths = {
+        home: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+        box: "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12",
+        map: "M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z M9 3v15 M15 6v15",
+        fileText: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z M14 2v4a2 2 0 0 0 2 2h4 M10 9H8 M16 13H8 M16 17H8",
+        book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z",
+        settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
+        sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41",
+        moon: "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z",
+        menu: "M3 12h18M3 6h18M3 18h18",
+        x: "M18 6L6 18M6 6l12 12",
+        calculator: "M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M8 6h8 M16 14h.01 M12 14h.01 M8 14h.01 M16 18h.01 M12 18h.01 M8 18h.01 M16 10h.01 M12 10h.01 M8 10h.01",
+        monitor: "M2 3h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3z M8 21h8 M12 17v4",
+        projector: "M5 7h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z M9 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M15 11h2 M15 13h2",
+        users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+        printer: "M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z",
+        lightbulb: "M9 18h6 M10 22h4 M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .34 2.02 1.5 3.5.76.75 1.23 1.51 1.41 2.5"
       };
-      return icons[name] || null;
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d={paths[name]} />
+        </svg>
+      );
     }
 
-    // 對齊 Truss 的 AppLayout 語法與樣式 (包含 &copy; 版權欄位、文字尺寸與側邊欄間距)
+    // --- 共用導覽 Layout 元件 ---
     function AppLayout({ activePage, children, theme, toggleTheme }) {
       const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -82,20 +95,24 @@
                 <Icon name="x" className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 px-3 space-y-1 mt-2">
+            
+            <nav className="flex-1 px-3 space-y-1 mt-2 custom-scrollbar overflow-y-auto">
               <NavItem href="index.html" icon={<Icon name="home" />} label="首頁介紹" isActive={activePage === 'home'} />
               <NavItem href="knowledge.html" icon={<Icon name="book" />} label="場勘專業知識庫" isActive={activePage === 'knowledge'} />
-              <div className="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">工作區</div>
+              <div className="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">工作區工具</div>
               <NavItem href="calculator.html" icon={<Icon name="calculator" />} label="專業尺寸與空間換算" isActive={activePage === 'calculator'} />
               <NavItem href="truss.html" icon={<Icon name="box" />} label="Truss 架構圖" isActive={activePage === 'truss'} />
               <NavItem href="floorplan.html" icon={<Icon name="map" />} label="平面圖繪製" isActive={activePage === 'floorplan'} />
               <NavItem href="report.html" icon={<Icon name="fileText" />} label="場勘報告匯出" isActive={activePage === 'report'} />
             </nav>
+            
             <div className="p-4 border-t border-slate-100 dark:border-slate-800/50">
               <button onClick={toggleTheme} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] transition-colors">
-                <span className="font-medium flex items-center gap-2">{theme === 'light' ? <Icon name="moon" /> : <Icon name="sun" />}{theme === 'light' ? '切換深色模式' : '切換淺色模式'}</span>
+                <span className="font-medium flex items-center gap-2">
+                  {theme === 'light' ? <Icon name="moon" /> : <Icon name="sun" />}
+                  {theme === 'light' ? '切換深色模式' : '切換淺色模式'}
+                </span>
               </button>
-              <div className="text-[10px] text-slate-400 dark:text-slate-600 text-center mt-4">&copy; 2026 Event Planner Tool</div>
             </div>
           </aside>
 
@@ -114,397 +131,309 @@
       );
     }
 
-    // 引入 Truss 封裝的 InputGroup 元件並優化
-    function InputGroup({ label, value, onChange, type = "number", min, max, step, suffix = "" }) {
+    function InputGroup({ label, value, onChange, suffix, step = "1" }) {
       return (
         <div>
-          <div className="flex justify-between text-xs mb-1.5">
-            <label className="text-slate-600 dark:text-slate-400 font-bold">{label}</label>
-            {suffix && <span className="text-indigo-600 dark:text-indigo-400 font-mono font-medium">{suffix}</span>}
+          <div className="flex justify-between text-xs mb-1.5 font-bold text-slate-500 uppercase tracking-widest">
+            <label>{label}</label>
+            {suffix && <span className="text-indigo-600 dark:text-indigo-400">{suffix}</span>}
           </div>
-          <input 
-            type={type} 
-            min={min} 
-            max={max} 
-            step={step} 
-            value={value} 
-            onChange={onChange} 
-            className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none text-base font-bold text-slate-900 dark:text-slate-100 transition-colors" 
-          />
+          <input type="number" value={value} onChange={onChange} step={step} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 font-bold text-base focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 dark:text-slate-100 transition-colors" />
         </div>
       );
     }
 
-    // --- 換算機工具組件 ---
+    // --- 各類計算機子元件 ---
 
-    // 1. LED 螢幕換算器
     function LEDCalculator() {
-      const [width, setWidth] = useState(8);
-      const [height, setHeight] = useState(4);
-      const [pitch, setPitch] = useState(2.5);
-
-      const resW = Math.round((width * 1000) / pitch);
-      const resH = Math.round((height * 1000) / pitch);
-      const totalPixels = resW * resH;
-      const aspect = (resW / resH).toFixed(2);
-
+      const [w, setW] = useState(8); const [h, setH] = useState(4); const [p, setP] = useState(2.5);
+      const resW = Math.round((w * 1000) / p); const resH = Math.round((h * 1000) / p);
+      
       return (
-        <div className="space-y-6">
-          <div className="bg-[#111] dark:bg-[#000] p-6 rounded-2xl border-4 border-slate-300 dark:border-slate-800 shadow-inner text-emerald-400 font-mono flex flex-col gap-2">
-            <div className="text-sm text-slate-400 font-bold uppercase tracking-widest flex justify-between">
-              <span>LED Resolution (W x H)</span>
-              <span>P{pitch}</span>
-            </div>
-            <div className="text-4xl sm:text-5xl font-bold tracking-tight digital-display truncate my-1">
-              {resW} <span className="text-slate-500 text-3xl">x</span> {resH} <span className="text-xl text-emerald-600">px</span>
-            </div>
-            <div className="text-sm font-medium text-emerald-500 mt-2 pt-3 border-t border-emerald-900/40 flex justify-between">
-              <span>總畫素: {(totalPixels / 10000).toFixed(1)} 萬</span>
-              <span>比例: {aspect}:1</span>
+        <div className="space-y-6 animate-in fade-in">
+          <div className="bg-[#000] p-6 sm:p-8 rounded-2xl border-4 border-slate-800 text-emerald-400 font-mono shadow-inner">
+            <div className="text-sm text-slate-400 font-bold mb-2 uppercase tracking-widest">Resolution (W x H)</div>
+            <div className="text-4xl sm:text-5xl font-bold tracking-tight digital-display truncate">{resW} <span className="text-slate-600 text-3xl">x</span> {resH} <span className="text-xl">px</span></div>
+            <div className="mt-4 pt-4 border-t border-emerald-900/40 flex justify-between text-sm text-emerald-500 font-medium">
+              <span>總畫素: {((resW * resH) / 10000).toFixed(1)} 萬</span>
+              <span>比例: {(resW / resH).toFixed(2)}:1</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <InputGroup 
-              label="螢幕總寬度" 
-              value={width} 
-              onChange={e => setWidth(Number(e.target.value))} 
-              step="0.5" 
-              suffix="公尺 (m)" 
-            />
-            <InputGroup 
-              label="螢幕總高度" 
-              value={height} 
-              onChange={e => setHeight(Number(e.target.value))} 
-              step="0.5" 
-              suffix="公尺 (m)" 
-            />
-            <div>
-              <div className="flex justify-between text-xs mb-1.5">
-                <label className="text-slate-600 dark:text-slate-400 font-bold">像素間距 (P數)</label>
-                <span className="text-indigo-600 dark:text-indigo-400 font-mono font-medium">mm</span>
-              </div>
-              <select value={pitch} onChange={e=>setPitch(Number(e.target.value))} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 text-base font-bold p-2.5 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-slate-900 dark:text-slate-100">
-                <option value="1.5">P1.5 (室內極細)</option>
-                <option value="2.0">P2.0 (室內高階)</option>
-                <option value="2.5">P2.5 (室內標準)</option>
-                <option value="3.0">P3.0 (室內/戶外)</option>
-                <option value="4.0">P4.0 (戶外標準)</option>
-              </select>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+            <InputGroup label="螢幕寬度" value={w} onChange={e => setW(e.target.value)} step="0.5" suffix="m" />
+            <InputGroup label="螢幕高度" value={h} onChange={e => setH(e.target.value)} step="0.5" suffix="m" />
           </div>
-          
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">像素間距 (P數)</label>
+            <select value={p} onChange={e => setP(Number(e.target.value))} className="w-full p-3 rounded-lg border bg-slate-50 dark:bg-[#15151A] border-slate-300 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+              <option value="1.5">P1.5 (室內極細)</option>
+              <option value="2.0">P2.0 (室內高階)</option>
+              <option value="2.5">P2.5 (室內標準)</option>
+              <option value="3.0">P3.0 (室內/戶外)</option>
+              <option value="4.0">P4.0 (戶外標準)</option>
+            </select>
+          </div>
+
           <div className="bg-emerald-50 dark:bg-emerald-900/10 border-l-4 border-emerald-500 p-4 rounded-r-lg">
             <h4 className="flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-400 mb-1">
-              <Icon name="lightbulb" className="w-4 h-4" /> 場勘為什麼需要算這個？
+              <Icon name="lightbulb" className="w-4 h-4" /> 場勘與製稿提醒
             </h4>
             <p className="text-sm text-emerald-700 dark:text-emerald-500/80 leading-relaxed">
-              掌握 LED 螢幕的總畫素。一方面讓視覺設計師有精確的製稿比例與解析度（避免畫面被強制拉伸變形），另一方面確保現場配置的發送卡與網路線數量足以負荷（單卡負載約 65 萬像素，此尺寸約需 <strong>{Math.ceil(totalPixels / 650000)}</strong> 條訊號線）。
+              單張發送卡負載約 65 萬像素。此尺寸約需配置 <strong>{Math.ceil((resW * resH) / 650000)}</strong> 條網路線訊號輸出。請提供準確的解析度給視覺設計師以防變形。
             </p>
           </div>
         </div>
       );
     }
 
-    // 2. 投影機與布幕換算器
     function ProjectionCalculator() {
       const [inch, setInch] = useState(150);
       const [ratio, setRatio] = useState('16:9');
-
-      const diagMeters = (inch * 2.54) / 100;
-      let wMeters = 0, hMeters = 0;
-      let recommendedPixel = "";
       
+      const diagMeters = (inch * 2.54) / 100;
+      let wMeters = 0, hMeters = 0, recommendedPixel = "";
       if (ratio === '16:9') {
-        wMeters = diagMeters * 0.8716;
-        hMeters = diagMeters * 0.4903;
+        wMeters = diagMeters * 0.8716; hMeters = diagMeters * 0.4903;
         recommendedPixel = inch >= 150 ? "3840 x 2160 (4K UHD)" : "1920 x 1080 (FHD)";
       } else {
-        wMeters = diagMeters * 0.8;
-        hMeters = diagMeters * 0.6;
+        wMeters = diagMeters * 0.8; hMeters = diagMeters * 0.6;
         recommendedPixel = inch >= 150 ? "1600 x 1200 (UXGA)" : "1024 x 768 (XGA)";
       }
 
-      const distShort = (wMeters * 0.8).toFixed(1);
-      const distStd = (wMeters * 1.5).toFixed(1);
-      const distLong = (wMeters * 2.0).toFixed(1);
-
       return (
-        <div className="space-y-6">
-          <div className="bg-[#111] dark:bg-[#000] p-6 rounded-2xl border-4 border-slate-300 dark:border-slate-800 shadow-inner text-cyan-400 font-mono flex flex-col gap-3">
-            <div className="text-sm text-slate-400 font-bold uppercase tracking-widest flex justify-between items-center">
-              <span>Physical Size</span>
+        <div className="space-y-6 animate-in fade-in">
+          <div className="bg-[#000] p-6 sm:p-8 rounded-2xl border-4 border-slate-800 text-cyan-400 font-mono shadow-inner">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-slate-400 font-bold uppercase tracking-widest">Physical Size</span>
               <span className="bg-cyan-900/40 text-cyan-300 px-2 py-1 rounded-md text-xs">{inch}" {ratio}</span>
             </div>
             <div className="text-4xl sm:text-5xl font-bold tracking-tight digital-display truncate my-1">
-              {wMeters.toFixed(2)} <span className="text-slate-500 text-3xl">x</span> {hMeters.toFixed(2)} <span className="text-xl text-cyan-600">m</span>
+              {wMeters.toFixed(2)} <span className="text-slate-600 text-3xl">x</span> {hMeters.toFixed(2)} <span className="text-xl">m</span>
             </div>
-            
-            <div className="flex items-center gap-2 mt-1 mb-2">
-              <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs font-sans">建議製稿像素</span>
-              <span className="text-sm font-bold text-cyan-300">{recommendedPixel}</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 mt-2 pt-3 border-t border-cyan-900/40 text-sm text-center">
-              <div><span className="block text-slate-500 font-bold mb-1">短焦距</span><span className="font-bold text-cyan-300">{distShort}m</span></div>
-              <div className="border-x border-cyan-900/40"><span className="block text-slate-500 font-bold mb-1">標準距</span><span className="font-bold text-cyan-300">{distStd}m</span></div>
-              <div><span className="block text-slate-500 font-bold mb-1">長焦距</span><span className="font-bold text-cyan-300">{distLong}m</span></div>
+            <div className="mt-4 pt-4 border-t border-cyan-900/40 grid grid-cols-3 text-center text-sm">
+               <div><div className="text-slate-500 mb-1 font-bold">短焦</div><div className="font-bold">{(wMeters * 0.8).toFixed(1)}m</div></div>
+               <div className="border-x border-cyan-900/40"><div className="text-slate-500 mb-1 font-bold">標準</div><div className="font-bold">{(wMeters * 1.5).toFixed(1)}m</div></div>
+               <div><div className="text-slate-500 mb-1 font-bold">長焦</div><div className="font-bold">{(wMeters * 2.0).toFixed(1)}m</div></div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-[#202024] p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-              <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">預設投影幕尺寸 (對角線吋)</label>
-              <div className="grid grid-cols-4 gap-2 mb-3">
-                {[100, 120, 150, 200].map(s => (
-                  <button key={s} onClick={()=>setInch(s)} className={`py-1.5 rounded-lg text-sm font-bold transition ${inch === s ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-[#15151A] text-slate-600 dark:text-slate-400 border border-transparent hover:border-slate-300'}`}>{s}"</button>
-                ))}
-              </div>
-              <InputGroup 
-                label="手動指定對角線" 
-                value={inch} 
-                onChange={e => setInch(Number(e.target.value))} 
-                step="10" 
-                suffix="吋 (inch)" 
-              />
-            </div>
-            
-            <div className="bg-white dark:bg-[#202024] p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col">
-              <label className="block text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">畫面比例 (Aspect Ratio)</label>
-              <div className="grid grid-cols-2 gap-2 flex-1 items-stretch">
-                <button onClick={()=>setRatio('16:9')} className={`rounded-lg text-sm font-bold border-2 transition flex items-center justify-center ${ratio === '16:9' ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50'}`}>16:9 (寬螢幕)</button>
-                <button onClick={()=>setRatio('4:3')} className={`rounded-lg text-sm font-bold border-2 transition flex items-center justify-center ${ratio === '4:3' ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50'}`}>4:3 (傳統)</button>
-              </div>
-            </div>
+             <InputGroup label="指定對角線尺寸" value={inch} onChange={e => setInch(Number(e.target.value))} step="10" suffix="inch" />
+             <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">畫面比例</label>
+                <div className="flex gap-2">
+                   <button onClick={()=>setRatio('16:9')} className={`flex-1 p-2.5 rounded-lg text-sm font-bold border-2 transition ${ratio === '16:9' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#15151A]'}`}>16:9 (寬螢幕)</button>
+                   <button onClick={()=>setRatio('4:3')} className={`flex-1 p-2.5 rounded-lg text-sm font-bold border-2 transition ${ratio === '4:3' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#15151A]'}`}>4:3 (傳統)</button>
+                </div>
+             </div>
           </div>
-          
+
           <div className="bg-cyan-50 dark:bg-cyan-900/10 border-l-4 border-cyan-500 p-4 rounded-r-lg">
             <h4 className="flex items-center gap-2 text-sm font-bold text-cyan-800 dark:text-cyan-400 mb-1">
-              <Icon name="lightbulb" className="w-4 h-4" /> 場勘為什麼需要算這個？
+              <Icon name="lightbulb" className="w-4 h-4" /> 建議製稿像素與場勘注意
             </h4>
             <p className="text-sm text-cyan-700 dark:text-cyan-500/80 leading-relaxed">
-              協助判斷投影機的架設位置（Throw Distance）。若現場深度不足以擺放標準鏡頭，就必須及早向硬體商改借「短焦鏡頭」；同時，提供設計端精確的「建議製稿像素」，能避免現場投出來的畫面文字模糊或四周被裁切。
+              建議視覺設計師以 <strong>{recommendedPixel}</strong> 進行製稿。請現場確認深度（Throw Distance）是否足夠架設標準鏡頭，若不足請向硬體商改借「短焦鏡頭」。
             </p>
           </div>
         </div>
-      );
+      )
     }
 
-    // 3. 空間與容留人數換算器
     function SpaceCalculator() {
       const [area, setArea] = useState(100);
-      const [unit, setUnit] = useState('ping'); // 'ping' or 'sqm'
-
+      const [unit, setUnit] = useState('ping');
       const sqm = unit === 'ping' ? area * 3.305785 : area;
       const ping = unit === 'sqm' ? area * 0.3025 : area;
 
-      const paxStanding = Math.floor(sqm / 0.8);
-      const paxTheater = Math.floor(sqm / 1.2);
-      const paxClassroom = Math.floor(sqm / 2.0);
-      const paxBanquet = Math.floor(sqm / 2.5);
-
       return (
-        <div className="space-y-6">
-          <div className="bg-[#111] dark:bg-[#000] p-6 rounded-2xl border-4 border-slate-300 dark:border-slate-800 shadow-inner text-amber-400 font-mono flex flex-col gap-3">
-            <div className="text-sm text-slate-400 font-bold uppercase tracking-widest flex justify-between items-center">
-              <span>Space Capacity</span>
+        <div className="space-y-6 animate-in fade-in">
+          <div className="bg-[#000] p-6 sm:p-8 rounded-2xl border-4 border-slate-800 text-amber-400 font-mono shadow-inner">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm text-slate-400 font-bold uppercase tracking-widest">CAPACITY</span>
               <span className="bg-amber-900/40 text-amber-300 px-2 py-1 rounded-md text-xs">{ping.toFixed(1)} 坪 / {sqm.toFixed(1)} m²</span>
             </div>
-            
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4 mt-2">
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                <span className="block text-xs font-bold text-slate-500 mb-1 font-sans">劇院型 (排椅)</span>
-                <span className="text-3xl font-bold digital-display">{paxTheater} <span className="text-base text-amber-600 font-sans">人</span></span>
-              </div>
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                <span className="block text-xs font-bold text-slate-500 mb-1 font-sans">教室型 (含桌)</span>
-                <span className="text-3xl font-bold digital-display">{paxClassroom} <span className="text-base text-amber-600 font-sans">人</span></span>
-              </div>
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                <span className="block text-xs font-bold text-slate-500 mb-1 font-sans">圓桌宴會 (10人/桌)</span>
-                <span className="text-3xl font-bold digital-display">{paxBanquet} <span className="text-base text-amber-600 font-sans">人</span></span>
-              </div>
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
-                <span className="block text-xs font-bold text-slate-500 mb-1 font-sans">純站立 (演唱會)</span>
-                <span className="text-3xl font-bold digital-display">{paxStanding} <span className="text-base text-amber-600 font-sans">人</span></span>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                 <div className="text-xs text-slate-500 font-sans mb-1">劇院型 (排椅)</div>
+                 <div className="text-3xl sm:text-4xl font-bold digital-display">{Math.floor(sqm/1.2)} <span className="text-base text-amber-600 font-sans">人</span></div>
+               </div>
+               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                 <div className="text-xs text-slate-500 font-sans mb-1">教室型 (含桌)</div>
+                 <div className="text-3xl sm:text-4xl font-bold digital-display">{Math.floor(sqm/2.0)} <span className="text-base text-amber-600 font-sans">人</span></div>
+               </div>
+               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                 <div className="text-xs text-slate-500 font-sans mb-1">宴會型 (10人/桌)</div>
+                 <div className="text-3xl sm:text-4xl font-bold digital-display">{Math.floor(sqm/2.5)} <span className="text-base text-amber-600 font-sans">人</span></div>
+               </div>
+               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                 <div className="text-xs text-slate-500 font-sans mb-1">純站立 (派對)</div>
+                 <div className="text-3xl sm:text-4xl font-bold digital-display">{Math.floor(sqm/0.8)} <span className="text-base text-amber-600 font-sans">人</span></div>
+               </div>
             </div>
           </div>
-
-          <div className="bg-white dark:bg-[#202024] p-5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <label className="text-sm font-bold text-slate-600 dark:text-slate-300">輸入場地總面積</label>
-              <div className="flex bg-slate-100 dark:bg-[#15151A] rounded-lg p-1">
-                <button onClick={()=>{setUnit('ping'); setArea(Math.round(ping));}} className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${unit==='ping'?'bg-white dark:bg-[#2A2B30] shadow text-indigo-600 dark:text-indigo-400':'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}>坪數</button>
-                <button onClick={()=>{setUnit('sqm'); setArea(Math.round(sqm));}} className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${unit==='sqm'?'bg-white dark:bg-[#2A2B30] shadow text-indigo-600 dark:text-indigo-400':'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}>平方公尺</button>
+          
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">輸入總面積</label>
+              <div className="flex bg-slate-100 dark:bg-[#15151A] rounded p-1">
+                <button onClick={()=>{setUnit('ping'); setArea(Math.round(ping));}} className={`px-3 py-1.5 text-xs font-bold rounded transition ${unit==='ping'?'bg-white dark:bg-[#2A2B30] shadow text-amber-600 dark:text-amber-400':'text-slate-500'}`}>坪數</button>
+                <button onClick={()=>{setUnit('sqm'); setArea(Math.round(sqm));}} className={`px-3 py-1.5 text-xs font-bold rounded transition ${unit==='sqm'?'bg-white dark:bg-[#2A2B30] shadow text-amber-600 dark:text-amber-400':'text-slate-500'}`}>m²</button>
               </div>
             </div>
-            <InputGroup 
-              label={`指定總面積 (${unit === 'ping' ? '坪' : 'm²'})`} 
-              value={area} 
-              onChange={e => setArea(Number(e.target.value))} 
-              suffix={unit === 'ping' ? '坪 (Ping)' : '平方公尺 (㎡)'} 
-            />
+            <input type="number" value={area} onChange={e=>setArea(Number(e.target.value))} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-lg font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 dark:text-slate-100 transition-colors" />
           </div>
 
           <div className="bg-amber-50 dark:bg-amber-900/10 border-l-4 border-amber-500 p-4 rounded-r-lg">
             <h4 className="flex items-center gap-2 text-sm font-bold text-amber-800 dark:text-amber-400 mb-1">
-              <Icon name="lightbulb" className="w-4 h-4" /> 場勘為什麼需要算這個？
+              <Icon name="lightbulb" className="w-4 h-4" /> 人數規劃提醒
             </h4>
             <p className="text-sm text-amber-700 dark:text-amber-500/80 leading-relaxed">
-              飯店或展館業務給的「百人場地」往往是極限塞滿的狀態。透過坪數與排型的快速換算，能扣除基本的舞台與走道消耗，立刻檢視場地是否能讓貴賓享有舒適的呼吸空間與行走動線，避免活動當天發生動線卡死的客訴。
+              此數值已預先扣除基礎走道與舞台折損。請務必現場確認是否有「不可移動的大型障礙物」或「粗大樑柱」，並視情況再下修 10% 以確保來賓有舒適的呼吸空間。
             </p>
           </div>
         </div>
-      );
+      )
     }
 
-    // 4. 大圖輸出解析度換算器
     function PrintCalculator() {
-      const [widthCm, setWidthCm] = useState(300);
-      const [heightCm, setHeightCm] = useState(250);
+      const [w, setW] = useState(300);
+      const [h, setH] = useState(250);
       const [dpi, setDpi] = useState(150);
 
-      const pxW = Math.round((widthCm / 2.54) * dpi);
-      const pxH = Math.round((heightCm / 2.54) * dpi);
-
       return (
-        <div className="space-y-6">
-          <div className="bg-[#111] dark:bg-[#000] p-6 rounded-2xl border-4 border-slate-300 dark:border-slate-800 shadow-inner text-rose-400 font-mono flex flex-col gap-2">
-            <div className="text-sm text-slate-400 font-bold uppercase tracking-widest flex justify-between items-center">
-              <span>File Resolution (Px)</span>
+        <div className="space-y-6 animate-in fade-in">
+          <div className="bg-[#000] p-6 sm:p-8 rounded-2xl border-4 border-slate-800 text-rose-400 font-mono shadow-inner">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-slate-400 font-bold uppercase tracking-widest">PRINT RES. (Px)</span>
               <span className="bg-rose-900/40 text-rose-300 px-2 py-1 rounded-md text-xs">{dpi} DPI</span>
             </div>
             <div className="text-4xl sm:text-5xl font-bold tracking-tight digital-display truncate my-1">
-              {pxW} <span className="text-slate-500 text-3xl">x</span> {pxH}
+              {Math.round((w/2.54)*dpi)} <span className="text-slate-600 text-3xl">x</span> {Math.round((h/2.54)*dpi)}
             </div>
-            <div className="text-sm font-medium text-rose-500 mt-2 pt-3 border-t border-rose-900/40 flex justify-between">
-              <span>輸出實體尺寸: {widthCm} x {heightCm} cm</span>
+            <div className="mt-4 text-sm text-rose-600 font-medium border-t border-rose-900/40 pt-3">
+              實體尺寸: {w} x {h} cm
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <InputGroup 
-              label="輸出寬度" 
-              value={widthCm} 
-              onChange={e => setWidthCm(Number(e.target.value))} 
-              suffix="公分 (cm)" 
-            />
-            <InputGroup 
-              label="輸出高度" 
-              value={heightCm} 
-              onChange={e => setHeightCm(Number(e.target.value))} 
-              suffix="公分 (cm)" 
-            />
-            <div>
-              <div className="flex justify-between text-xs mb-1.5">
-                <label className="text-slate-600 dark:text-slate-400 font-bold">要求解析度 (DPI)</label>
-                <span className="text-indigo-600 dark:text-indigo-400 font-mono font-medium">dpi</span>
-              </div>
-              <select value={dpi} onChange={e=>setDpi(Number(e.target.value))} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 text-sm font-bold p-3 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-slate-900 dark:text-slate-100">
-                <option value="72">72 dpi (遠距大型帆布)</option>
-                <option value="150">150 dpi (一般展板/背板)</option>
-                <option value="300">300 dpi (近距文宣/海報)</option>
-              </select>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+             <InputGroup label="寬度 (cm)" value={w} onChange={e=>setW(e.target.value)} suffix="cm" />
+             <InputGroup label="高度 (cm)" value={h} onChange={e=>setH(e.target.value)} suffix="cm" />
+          </div>
+
+          <div>
+             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">要求解析度 (DPI)</label>
+             <select value={dpi} onChange={e=>setDpi(Number(e.target.value))} className="w-full p-3 rounded-lg border bg-slate-50 dark:bg-[#15151A] border-slate-300 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+               <option value="72">72 dpi (遠距大型帆布)</option>
+               <option value="150">150 dpi (一般展板/背板)</option>
+               <option value="300">300 dpi (近距文宣/海報)</option>
+             </select>
           </div>
 
           <div className="bg-rose-50 dark:bg-rose-900/10 border-l-4 border-rose-500 p-4 rounded-r-lg">
             <h4 className="flex items-center gap-2 text-sm font-bold text-rose-800 dark:text-rose-400 mb-1">
-              <Icon name="lightbulb" className="w-4 h-4" /> 場勘為什麼需要算這個？
+              <Icon name="lightbulb" className="w-4 h-4" /> 製稿與出血提醒
             </h4>
             <p className="text-sm text-rose-700 dark:text-rose-500/80 leading-relaxed">
-              測量背板或輸出牆面時，必須將「公分數」轉化為設計師聽得懂的「畫布像素(px)」。透過提前計算並預留四周 <strong>+3cm 的包邊出血區域</strong>，是避免現場施工時大圖文字被截斷或留下白邊的關鍵。
+              大圖輸出請確認色彩模式為 CMYK，並於製稿時在四周預留 <strong>+3cm 的包邊出血區域</strong>，避免現場施工與裁切時留下白邊或導致文字被截斷。
             </p>
           </div>
         </div>
-      );
+      )
     }
 
-    // --- 主程式 ---
+    // --- 計算機主佈局（與其他網頁共用 AppLayout 框架） ---
     function CalculatorApp() {
       const [activeTool, setActiveTool] = useState('led');
-
       const tools = [
-        { id: 'led', title: 'LED 螢幕', desc: '間距與畫素換算', icon: <Icon name="monitor" className="w-4 h-4" />, color: 'bg-emerald-500', activeRing: 'ring-emerald-500' },
-        { id: 'projection', title: '投影與布幕', desc: '尺寸與投影距離', icon: <Icon name="projector" className="w-4 h-4" />, color: 'bg-cyan-500', activeRing: 'ring-cyan-500' },
-        { id: 'space', title: '空間容留', desc: '坪數換算與人數', icon: <Icon name="users" className="w-4 h-4" />, color: 'bg-amber-500', activeRing: 'ring-amber-500' },
-        { id: 'print', title: '大圖輸出', desc: '公分轉像素(px)', icon: <Icon name="printer" className="w-4 h-4" />, color: 'bg-rose-500', activeRing: 'ring-rose-500' }
+        { id: 'led', title: 'LED 螢幕', icon: 'monitor' },
+        { id: 'projection', title: '投影布幕', icon: 'projector' },
+        { id: 'space', title: '空間容量', icon: 'users' },
+        { id: 'print', title: '大圖輸出', icon: 'printer' }
       ];
 
       return (
-        <div className="h-full flex flex-col p-4 sm:p-8 animate-in fade-in transition-colors max-w-5xl mx-auto w-full">
+        <div className="h-full flex flex-col animate-in fade-in transition-colors">
           
-          <header className="mb-5 shrink-0 text-center sm:text-left pt-2 sm:pt-0">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white flex items-center justify-center sm:justify-start gap-3">
-              <Icon name="calculator" className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400" />
+          {/* Header */}
+          <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex justify-between items-center shrink-0">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Icon name="calculator" className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               專業尺寸與空間換算機
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1.5 text-sm">提供活動現場最常使用的硬體、空間與視覺檔案快速計算工具。</p>
-          </header>
+            </h2>
+          </div>
 
-          {/* 橫向切換頁籤選單（對齊 Truss 分頁的極簡設計語法，不壓縮下方計算區域） */}
-          <div className="flex flex-wrap sm:flex-nowrap gap-1.5 p-1.5 bg-slate-100 dark:bg-[#202024] rounded-xl mb-6 shrink-0 border border-slate-200/50 dark:border-slate-800/50">
-            {tools.map(tool => (
+          {/* 行動版頂部分頁列 (僅在手機/平板顯示) */}
+          <div className="lg:hidden bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex gap-1 shrink-0 overflow-x-auto custom-scrollbar">
+            {tools.map(t => (
               <button 
-                key={tool.id}
-                onClick={() => setActiveTool(tool.id)}
-                className={`flex-1 min-w-[120px] sm:min-w-0 flex items-center justify-center gap-2.5 py-2 px-3 rounded-lg font-bold text-sm transition-all duration-200 ${
-                  activeTool === tool.id 
-                    ? 'bg-white dark:bg-[#2A2B30] text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700' 
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
+                key={t.id} 
+                onClick={() => setActiveTool(t.id)} 
+                className={`flex-1 whitespace-nowrap py-2 px-3 rounded-md text-xs font-bold text-center border transition-all ${activeTool === t.id ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30]'}`}
               >
-                <div className={`p-1 rounded-md text-white ${tool.color} shrink-0`}>
-                  {tool.icon}
-                </div>
-                <span className="truncate">{tool.title}</span>
+                {t.title}
               </button>
             ))}
           </div>
 
-          {/* 換算器主視窗內容（包含獨立微型滾動軸，防止破壞整體框架） */}
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-8">
-            {activeTool === 'led' && <LEDCalculator />}
-            {activeTool === 'projection' && <ProjectionCalculator />}
-            {activeTool === 'space' && <SpaceCalculator />}
-            {activeTool === 'print' && <PrintCalculator />}
+          {/* 內容區塊 (雙欄 / 單欄自適應) */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            
+            {/* 左側功能選單 (僅在桌機顯示，與 Truss 版面一致) */}
+            <div className="hidden lg:flex w-[260px] bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-10">
+               <div className="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-2">
+                 <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-1">選擇換算工具</div>
+                 {tools.map(t => (
+                   <button 
+                     key={t.id} 
+                     onClick={() => setActiveTool(t.id)} 
+                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${
+                       activeTool === t.id 
+                         ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30' 
+                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#2A2B30] border border-transparent'
+                     }`}
+                   >
+                     <Icon name={t.icon} className="w-5 h-5" />
+                     {t.title}
+                   </button>
+                 ))}
+               </div>
+            </div>
+
+            {/* 右側計算機主體呈現區 */}
+            <div className="flex-1 bg-[#F6F8F9] dark:bg-[#15151A] overflow-y-auto custom-scrollbar p-4 sm:p-8">
+               <div className="max-w-2xl mx-auto bg-white dark:bg-[#1E1E22] rounded-3xl shadow-sm border border-slate-200/80 dark:border-slate-800 p-6 sm:p-10">
+                 {activeTool === 'led' && <LEDCalculator />}
+                 {activeTool === 'projection' && <ProjectionCalculator />}
+                 {activeTool === 'space' && <SpaceCalculator />}
+                 {activeTool === 'print' && <PrintCalculator />}
+               </div>
+            </div>
+
           </div>
         </div>
       );
     }
 
-    // --- 初始化與根組件渲染 ---
-    function MainApp() {
-      const [theme, setTheme] = useState('light');
-
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    function RootApp() {
+      const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
       useEffect(() => {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          setTheme('dark');
-        }
-      }, []);
-
-      useEffect(() => {
-        if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', theme);
       }, [theme]);
-
-      const toggleTheme = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : 'light');
-      };
-
+      const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+      
       return (
         <AppLayout activePage="calculator" theme={theme} toggleTheme={toggleTheme}>
           <CalculatorApp />
         </AppLayout>
       );
     }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<MainApp />);
+    root.render(<RootApp />);
   </script>
 </body>
 </html>
