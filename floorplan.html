@@ -24,10 +24,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     body { -webkit-tap-highlight-color: transparent; }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+    
+    /* SVG 畫布專屬設定 */
+    .zone-shape { cursor: pointer; transition: opacity 150ms ease; }
+    .zone-shape:hover { opacity: 0.85; }
+    .point-handle { cursor: grab; }
+    .point-handle:active { cursor: grabbing; }
+    
+    /* 無填色按鈕斜線背景 */
+    .no-fill-bg {
+      background: linear-gradient(45deg, transparent 45%, #ef4444 45%, #ef4444 55%, transparent 55%);
+    }
+    
+    /* 確保行動裝置在畫布區內觸控拖曳元件時，不觸發原生的返回或重新整理 */
+    .touch-none-canvas { touch-action: none; }
   </style>
 </head>
 <body class="bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
@@ -36,7 +50,7 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // --- 核心圖示元件區 (包含所有系統與平面圖所需的圖示) ---
+    // --- 系統共用圖示元件 ---
     function Icon({ name, className = "w-4 h-4" }) {
       const paths = {
         home: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
@@ -45,20 +59,19 @@
         fileText: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z M14 2v4a2 2 0 0 0 2 2h4 M10 9H8 M16 13H8 M16 17H8",
         book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z",
         calculator: "M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M8 6h8 M16 14h.01 M12 14h.01 M8 14h.01 M16 18h.01 M12 18h.01 M8 18h.01 M16 10h.01 M12 10h.01 M8 10h.01",
-        settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
+        settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
         sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41",
         moon: "M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z",
         menu: "M3 12h18M3 6h18M3 18h18",
         x: "M18 6L6 18M6 6l12 12",
         download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
-        rotateCcw: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5",
+        refresh: "M23 4v6h-6 M1 20v-6h6 M3.51 9a9 9 0 0 1 14.85-3.36L23 10 M1 14l4.64 4.36A9 9 0 0 0 20.49 15",
         layoutGrid: "M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z",
         penTool: "M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
         copy: "M9 9h13v13H9z M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
         trash2: "M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6",
-        edit3: "M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
-        mousePointer2: "M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z",
-        // 平面圖特定圖庫 Icon
+        layers: "M12 2l10 5-10 5L2 7l10-5z M2 17l10 5 10-5 M2 12l10 5 10-5",
+        mousePointer: "M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z",
         presentation: "M2 3h20v14H2z M12 17v4 M10 21h4",
         mic: "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4 M8 22h8",
         sofa: "M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3 M2 9h20v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9z M4 16v4h2v-4 M18 16v4h2v-4",
@@ -75,7 +88,12 @@
         rainbow: "M22 17a10 10 0 0 0-20 0 M18 17a6 6 0 0 0-12 0 M14 17a2 2 0 0 0-4 0",
         droplets: "M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.09 3 12.25c0 2.22 1.8 4.05 4 4.05zM17 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S17.29 6.75 17 5.3c-.29 1.45-1.14 2.84-2.29 3.76S13 11.09 13 12.25c0 2.22 1.8 4.05 4 4.05z",
         heartPulse: "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z M3.22 12H7l2-5 3 10 1.5-7 1.5 4h3.78",
-        treePine: "M17 14l3-3-3-3h3L12 2 4 8h3L4 11l3 3H4l8 8 8-8z M12 18v4"
+        treePine: "M17 14l3-3-3-3h3L12 2 4 8h3L4 11l3 3H4l8 8 8-8z M12 18v4",
+        // 新增箭頭圖示路徑
+        arrowUp: "m5 12 7-7 7 7M12 5v16",
+        arrowDown: "m19 12-7 7-7-7M12 19V3",
+        chevronsUp: "m18 15-6-6-6 6M18 9l-6-6-6 6",
+        chevronsDown: "m6 9 6 6 6-6M6 15l6 6 6-6"
       };
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -84,13 +102,12 @@
       );
     }
 
-    // --- 共用導覽 Layout 元件 ---
+    // --- 系統導覽 Layout ---
     function AppLayout({ activePage, children, theme, toggleTheme }) {
       const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
       return (
         <div className="flex h-screen bg-[#F6F8F9] dark:bg-[#15151A] text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
-          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-40 transition-colors duration-300 print:hidden">
+          <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between shrink-0 z-40 transition-colors duration-300">
             <button onClick={() => setIsSidebarOpen(true)} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#2A2B30] text-slate-600 dark:text-slate-400">
               <Icon name="menu" className="w-6 h-6" />
             </button>
@@ -103,9 +120,9 @@
             </button>
           </header>
 
-          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 print:hidden" />}
+          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="lg:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300" />}
 
-          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-50 transition-transform duration-300 print:hidden lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <aside className={`fixed lg:relative inset-y-0 left-0 w-64 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0 z-50 transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-6 flex items-center justify-between">
               <a href="index.html" className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white hover:opacity-80 transition-opacity">
                 <div className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center"><Icon name="settings" className="w-4 h-4 text-white" /></div>
@@ -136,7 +153,7 @@
             </div>
           </aside>
 
-          <main className="flex-1 flex flex-col relative pt-14 lg:pt-0 print:pt-0 print:w-full print:absolute print:inset-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
+          <main className="flex-1 min-w-0 flex flex-col relative pt-14 lg:pt-0 bg-[#F6F8F9] dark:bg-[#15151A] transition-colors duration-300">
             {children}
           </main>
         </div>
@@ -151,221 +168,366 @@
       );
     }
 
-    // --- 平面圖繪製主程式 ---
-    function FloorPlanApp() {
-      const canvasRef = useRef(null);
+
+    // --- 平面圖繪製系統 ---
+
+    const GRID_SIZE = 20;
+
+    const colorThemes = {
+      "#fef08a": { stroke: "#eab308", darkStroke: "#ca8a04", label: "黃色" },
+      "#fecaca": { stroke: "#ef4444", darkStroke: "#dc2626", label: "紅色" },
+      "#dbeafe": { stroke: "#3b82f6", darkStroke: "#2563eb", label: "藍色" },
+      "#bbf7d0": { stroke: "#22c55e", darkStroke: "#16a34a", label: "綠色" },
+      "#e9d5ff": { stroke: "#a855f7", darkStroke: "#9333ea", label: "紫色" },
+      "#f3f4f6": { stroke: "#64748b", darkStroke: "#475569", label: "灰色" },
+      "transparent": { stroke: "#94a3b8", darkStroke: "#64748b", label: "無色" }
+    };
+
+    const componentSpecs = {
+      stage: { name: "演講舞台", shape: "rect", w: 12, h: 6, icon: "📺", category: '會議論壇' },
+      podium: { name: "水晶講桌", shape: "rect", w: 3, h: 2, icon: "🎙️", category: '會議論壇' },
+      sofa: { name: "貴賓沙發", shape: "rect", w: 4, h: 2, icon: "🛋️", category: '會議論壇' },
+      chairs: { name: "觀眾排椅", shape: "rect", w: 8, h: 4, icon: "🪑", category: '會議論壇' },
+      booth: { name: "標準攤位", shape: "rect", w: 5, h: 5, icon: "🏪", category: '市集展攤' },
+      foodtruck: { name: "造型餐車", shape: "rect", w: 8, h: 4, icon: "🚚", category: '市集展攤' },
+      table: { name: "陳列長桌", shape: "rect", w: 6, h: 2, icon: "🫓", category: '市集展攤' },
+      umbrella: { name: "大遮陽傘", shape: "circle", w: 4, h: 4, icon: "☂️", category: '市集展攤' },
+      tent: { name: "活動帳篷", shape: "rect", w: 5, h: 5, icon: "⛺", category: '戶外與安全' },
+      arch: { name: "充氣拱門", shape: "rect", w: 9, h: 2, icon: "🧲", category: '戶外與安全' },
+      wc: { name: "流動廁所", shape: "rect", w: 3, h: 3, icon: "🚻", category: '戶外與安全' },
+      medical: { name: "醫護站", shape: "rect", w: 5, h: 5, icon: "🏥", category: '戶外與安全' }
+    };
+
+    function FloorPlanApp({ theme }) {
+      const isDark = theme === 'dark';
+      const svgRef = useRef(null);
+
+      // UI 與畫布設定狀態
+      const [canvasSize, setCanvasSize] = useState({ w: 1920, h: 1080 });
+      const [scale, setScale] = useState(1);
+      
       const [leftTab, setLeftTab] = useState('library'); 
       const [mobileSubTab, setMobileSubTab] = useState('canvas'); 
-      
-      const [items, setItems] = useState([
-        { id: 1, type: 'rect', cx: 400, cy: 160, w: 200, h: 80, label: '主舞台', color: '#fef3c7', rotation: 0, scale: 1 },
-        { id: 2, type: 'rect', cx: 400, cy: 380, w: 100, h: 40, label: '控台 (PA)', color: '#e0f2fe', rotation: 0, scale: 1 }
+      const [toastMsg, setToastMsg] = useState('');
+
+      // 畫布資料狀態
+      const [zones, setZones] = useState([
+        { id: 'zone_1', name: '主舞台預設', shape: 'rect', gridW: 12, gridH: 6, color: '#fef08a', noFill: false, offsetX: 0, offsetY: 0, rotation: 0, points: [{x: 840, y: 300}] },
+        { id: 'zone_2', name: '控台預設', shape: 'rect', gridW: 6, gridH: 4, color: '#dbeafe', noFill: false, offsetX: 0, offsetY: 0, rotation: 0, points: [{x: 900, y: 600}] }
       ]);
       const [selectedId, setSelectedId] = useState(null);
-      const [draggingId, setDraggingId] = useState(null);
       
-      const [mode, setMode] = useState('select'); 
-      const [polygonPoints, setPolygonPoints] = useState([]);
-      const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-      const lastMouseRef = useRef({ x: 0, y: 0 });
+      // 繪圖與操作狀態
+      const [isDrawing, setIsDrawing] = useState(false);
+      const [drawMode, setDrawMode] = useState(null); 
+      const [draftPoints, setDraftPoints] = useState([]);
+      const [mousePos, setMousePos] = useState({x: 0, y: 0});
+      const [draggingCompType, setDraggingCompType] = useState(null);
 
-      const libraryCategories = [
-        { name: '會議論壇', items: [{ label: '演講舞台', w: 180, h: 60, icon: <Icon name="presentation" className="w-5 h-5 text-amber-500 mb-1" />, color: '#fef3c7' }, { label: '水晶講桌', w: 40, h: 40, icon: <Icon name="mic" className="w-5 h-5 text-slate-500 mb-1" />, color: '#f3f4f6' }, { label: '貴賓沙發', w: 100, h: 40, icon: <Icon name="sofa" className="w-5 h-5 text-emerald-500 mb-1" />, color: '#d1fae5' }, { label: '觀眾排椅', w: 120, h: 80, icon: <Icon name="users" className="w-5 h-5 text-blue-500 mb-1" />, color: '#dbeafe' }] },
-        { name: '市集展攤', items: [{ label: '標準攤位', w: 90, h: 90, icon: <Icon name="store" className="w-5 h-5 text-green-600 mb-1" />, color: '#bbf7d0' }, { label: '造型餐車', w: 120, h: 60, icon: <Icon name="truck" className="w-5 h-5 text-amber-600 mb-1" />, color: '#fde68a' }, { label: '陳列長桌', w: 120, h: 40, icon: <Icon name="table" className="w-5 h-5 text-orange-700 mb-1" />, color: '#fed7aa' }, { label: '大遮陽傘', w: 80, h: 80, icon: <Icon name="umbrella" className="w-5 h-5 text-sky-500 mb-1" />, color: '#bae6fd' }] },
-        { name: '戶外與安全', items: [{ label: '活動帳篷', w: 100, h: 100, icon: <Icon name="tent" className="w-5 h-5 text-amber-700 mb-1" />, color: '#fed7aa' }, { label: '充氣拱門', w: 160, h: 30, icon: <Icon name="rainbow" className="w-5 h-5 text-pink-500 mb-1" />, color: '#fbcfe8' }, { label: '流動廁所', w: 60, h: 60, icon: <Icon name="droplets" className="w-5 h-5 text-blue-500 mb-1" />, color: '#e0f2fe' }, { label: '醫護站', w: 90, h: 60, icon: <Icon name="heartPulse" className="w-5 h-5 text-red-500 mb-1" />, color: '#fecaca' }] }
-      ];
+      // 拖曳暫存 Ref
+      const dragRef = useRef({ type: null, id: null, pointIdx: null, startX: 0, startY: 0, initialZones: [] });
 
-      const getMousePos = (canvas, evt) => {
-        const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-        return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+      const showToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(''), 2500);
       };
 
-      const getTouchPos = (canvas, evt) => {
-        if (!evt.touches || evt.touches.length === 0) return { x: 0, y: 0 };
-        const touch = evt.touches[0]; const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
-        return { x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY };
+      const getCentroid = (pts) => {
+        if(!pts || !pts.length) return { x: 0, y: 0 };
+        const sum = pts.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+        return { x: sum.x / pts.length, y: sum.y / pts.length };
       };
 
-      const isPointInRotatedRect = (pos, item) => {
-        const dx = pos.x - item.cx; const dy = pos.y - item.cy; const r = -(item.rotation || 0) * Math.PI / 180;
-        const rx = dx * Math.cos(r) - dy * Math.sin(r); const ry = dx * Math.sin(r) + dy * Math.cos(r);
-        const actualW = item.w * (item.scale || 1); const actualH = item.h * (item.scale || 1);
-        return Math.abs(rx) <= actualW / 2 && Math.abs(ry) <= actualH / 2;
+      const getSvgPoint = (e) => {
+        if (!svgRef.current) return { x: 0, y: 0 };
+        const svg = svgRef.current;
+        const pt = svg.createSVGPoint();
+        
+        if (e.touches && e.touches.length > 0) {
+          pt.x = e.touches[0].clientX;
+          pt.y = e.touches[0].clientY;
+        } else {
+          pt.x = e.clientX;
+          pt.y = e.clientY;
+        }
+
+        const transformed = pt.matrixTransform(svg.getScreenCTM().inverse());
+        return {
+          x: Math.max(0, Math.min(canvasSize.w, Math.round(transformed.x))),
+          y: Math.max(0, Math.min(canvasSize.h, Math.round(transformed.y)))
+        };
       };
 
-      const isPointInPolygon = (point, vs) => {
-        let x = point.x, y = point.y, inside = false;
-        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-          let xi = vs[i].x, yi = vs[i].y, xj = vs[j].x, yj = vs[j].y;
-          let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-          if (intersect) inside = !inside;
-        } return inside;
-      };
+      // --- Pointer 事件處理 ---
+      
+      const handleSvgPointerDown = (e) => {
+        if (e.target.tagName === 'svg' || (e.target.tagName === 'rect' && (e.target.getAttribute('fill') === 'url(#gridPattern)' || e.target.getAttribute('fill') === 'transparent' || e.target.getAttribute('data-bg') === 'true'))) {
+          setSelectedId(null);
+          
+          const pt = getSvgPoint(e);
 
-      const handleCanvasStart = (pos) => {
-        if (mode === 'draw_polygon') {
-          if (polygonPoints.length > 2) {
-            const firstPt = polygonPoints[0]; const d = Math.sqrt(Math.pow(pos.x - firstPt.x, 2) + Math.pow(pos.y - firstPt.y, 2));
-            if (d < 20) { finishPolygon(); return; }
+          if (draggingCompType) {
+            const spec = componentSpecs[draggingCompType];
+            const newId = `zone_${Date.now()}`;
+            const newZone = {
+              id: newId, name: spec.name, shape: spec.shape, gridW: spec.w, gridH: spec.h,
+              color: "#dbeafe", noFill: false, offsetX: 0, offsetY: 0, rotation: 0,
+              points: spec.shape === 'circle' ? [pt] : [pt, { x: pt.x + spec.w * GRID_SIZE, y: pt.y + spec.h * GRID_SIZE }]
+            };
+            setZones([...zones, newZone]);
+            setSelectedId(newId);
+            setDraggingCompType(null);
+            showToast(`已放置 ${spec.name}`);
+            return;
           }
-          setPolygonPoints([...polygonPoints, pos]); return;
-        }
-        let hitId = null;
-        for (let i = items.length - 1; i >= 0; i--) {
-          const item = items[i];
-          if (item.type === 'rect') { if (isPointInRotatedRect(pos, item)) { hitId = item.id; break; } } 
-          else if (item.type === 'polygon') { if (isPointInPolygon(pos, item.points)) { hitId = item.id; break; } }
-        }
-        setSelectedId(hitId);
-        if (hitId) { setDraggingId(hitId); lastMouseRef.current = pos; }
-      };
 
-      const handleCanvasMove = (pos) => {
-        setMousePos(pos);
-        if (draggingId) {
-          const dx = pos.x - lastMouseRef.current.x, dy = pos.y - lastMouseRef.current.y; lastMouseRef.current = pos;
-          setItems(items.map(item => {
-            if (item.id === draggingId) {
-              if (item.type === 'rect') return { ...item, cx: item.cx + dx, cy: item.cy + dy };
-              else if (item.type === 'polygon') return { ...item, points: item.points.map(p => ({ x: p.x + dx, y: p.y + dy })) };
+          if (isDrawing) {
+            if (draftPoints.length > 2 && drawMode === 'polygon') {
+              const firstPt = draftPoints[0];
+              const dist = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
+              if (dist < 20) {
+                finishDrawing();
+                return;
+              }
             }
-            return item;
-          }));
-        }
-      };
-
-      const handleCanvasEnd = () => { setDraggingId(null); };
-      const handleDoubleClick = () => { if (mode === 'draw_polygon' && polygonPoints.length >= 3) finishPolygon(); };
-
-      const finishPolygon = () => {
-        if (polygonPoints.length < 3) { setPolygonPoints([]); setMode('select'); return; }
-        const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-        setItems([...items, { id: newId, type: 'polygon', points: polygonPoints, label: '不規則區域', color: '#fef3c7' }]);
-        setPolygonPoints([]); setMode('select'); setMobileSubTab('canvas');
-      };
-
-      const addLibraryItem = (libItem) => {
-        const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-        setItems([...items, { id: newId, type: 'rect', cx: 400, cy: 300, w: libItem.w, h: libItem.h, label: libItem.label, color: libItem.color, rotation: 0, scale: 1 }]);
-        setSelectedId(newId); setMode('select'); setMobileSubTab('canvas');
-      };
-
-      const updateItem = (id, field, value) => { setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item)); };
-      const deleteItem = (id) => { setItems(items.filter(item => item.id !== id)); if (selectedId === id) setSelectedId(null); };
-
-      const duplicateItem = (id) => {
-        const itemToCopy = items.find(i => i.id === id);
-        if (itemToCopy) {
-          const newId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-          let newItem = { ...itemToCopy, id: newId, label: itemToCopy.label + ' (複製)' };
-          if (newItem.type === 'rect') { newItem.cx += 20; newItem.cy += 20; } else if (newItem.type === 'polygon') { newItem.points = newItem.points.map(p => ({ x: p.x + 20, y: p.y + 20 })); }
-          setItems([...items, newItem]); setSelectedId(newId);
-        }
-      };
-
-      const moveLayer = (id, action) => {
-        setItems(prev => {
-          const index = prev.findIndex(item => item.id === id);
-          if (index === -1) return prev;
-          const newItems = [...prev];
-          if (action === 'front' && index < prev.length - 1) { const [item] = newItems.splice(index, 1); newItems.push(item); }
-          else if (action === 'back' && index > 0) { const [item] = newItems.splice(index, 1); newItems.unshift(item); }
-          else if (action === 'up' && index < prev.length - 1) { const temp = newItems[index]; newItems[index] = newItems[index + 1]; newItems[index + 1] = temp; }
-          else if (action === 'down' && index > 0) { const temp = newItems[index]; newItems[index] = newItems[index - 1]; newItems[index - 1] = temp; }
-          return newItems;
-        });
-      };
-
-      const clearCanvas = () => { if(window.confirm('確定要清空畫布重新繪製嗎？')) { setItems([]); setSelectedId(null); setPolygonPoints([]); } };
-
-      const getPolygonCentroid = (pts) => {
-        let first = pts[0], last = pts[pts.length - 1]; if (first.x !== last.x || first.y !== last.y) pts = [...pts, first];
-        let twicearea = 0, x = 0, y = 0, nPts = pts.length, p1, p2, f;
-        for (let i = 0, j = nPts - 1; i < nPts; j = i++) {
-          p1 = pts[i]; p2 = pts[j]; f = p1.x * p2.y - p2.x * p1.y; twicearea += f; x += (p1.x + p2.x) * f; y += (p1.y + p2.y) * f;
-        }
-        f = twicearea * 3; return { x: x / f, y: y / f };
-      };
-
-      useEffect(() => {
-        const canvas = canvasRef.current; if (!canvas) return; const ctx = canvas.getContext('2d');
-        const width = 800; const height = 600; canvas.width = width; canvas.height = height;
-        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
-        ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 1;
-        for(let x=0; x<=width; x+=20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
-        for(let y=0; y<=height; y+=20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-
-        items.forEach(item => {
-          ctx.save();
-          const isSelected = item.id === selectedId;
-          ctx.strokeStyle = isSelected ? '#4f46e5' : '#64748b'; ctx.lineWidth = isSelected ? 2.5 : 1.2;
-          if (isSelected) { ctx.shadowColor = 'rgba(79, 70, 229, 0.4)'; ctx.shadowBlur = 6; }
-
-          if (item.type === 'rect') {
-            const actualW = item.w * (item.scale || 1); const actualH = item.h * (item.scale || 1);
-            ctx.translate(item.cx, item.cy); ctx.rotate((item.rotation || 0) * Math.PI / 180); ctx.beginPath();
-            ctx.roundRect(-actualW / 2, -actualH / 2, actualW, actualH, 4);
-            if (item.color !== 'transparent') { ctx.fillStyle = item.color; ctx.fill(); } else if (isSelected) { ctx.fillStyle = 'rgba(79, 70, 229, 0.05)'; ctx.fill(); }
-            ctx.stroke(); ctx.fillStyle = '#1e293b'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = 'transparent';
-            ctx.fillText(item.label, 0, 0);
-          } else if (item.type === 'polygon') {
-            ctx.beginPath();
-            item.points.forEach((p, idx) => { if (idx === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
-            ctx.closePath();
-            if (item.color !== 'transparent') { ctx.fillStyle = item.color; ctx.fill(); } else if (isSelected) { ctx.fillStyle = 'rgba(79, 70, 229, 0.05)'; ctx.fill(); }
-            ctx.stroke(); const centroid = getPolygonCentroid(item.points); ctx.fillStyle = '#1e293b'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = 'transparent'; ctx.fillText(item.label, centroid.x, centroid.y);
+            const newDraft = [...draftPoints, pt];
+            setDraftPoints(newDraft);
+            
+            if (drawMode === 'rect' && newDraft.length === 2) finishDrawing(newDraft);
+            if (drawMode === 'circle' && newDraft.length === 2) finishDrawing(newDraft);
           }
-          ctx.restore();
-        });
-
-        if (mode === 'draw_polygon' && polygonPoints.length > 0) {
-          ctx.strokeStyle = '#4f46e5'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.beginPath();
-          polygonPoints.forEach((p, idx) => { if (idx === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); ctx.fillStyle = '#4f46e5'; ctx.fillRect(p.x - 3, p.y - 3, 6, 6); });
-          ctx.lineTo(mousePos.x, mousePos.y); ctx.stroke(); ctx.setLineDash([]); 
-          if (polygonPoints.length > 2) { ctx.beginPath(); ctx.arc(polygonPoints[0].x, polygonPoints[0].y, 5, 0, Math.PI*2); ctx.fillStyle = 'rgba(79, 70, 229, 0.5)'; ctx.fill(); }
         }
-      }, [items, selectedId, mode, polygonPoints, mousePos]);
+      };
 
-      const selectedItem = items.find(i => i.id === selectedId);
-      const reversedItems = [...items].reverse();
+      const handlePointerDown = (e, type, id, pointIdx = null) => {
+        if (isDrawing) return;
+        e.stopPropagation();
+        
+        setSelectedId(id);
+
+        const pt = getSvgPoint(e);
+        dragRef.current = {
+          type, id, pointIdx,
+          startX: pt.x, startY: pt.y,
+          initialZones: JSON.parse(JSON.stringify(zones))
+        };
+      };
+
+      const handlePointerMove = (e) => {
+        const pt = getSvgPoint(e);
+        setMousePos(pt);
+
+        if (!dragRef.current.type) return;
+
+        const { type, id, pointIdx, startX, startY, initialZones } = dragRef.current;
+        const dx = pt.x - startX;
+        const dy = pt.y - startY;
+
+        setZones(prev => prev.map(z => {
+          if (z.id !== id) return z;
+          const origZ = initialZones.find(oz => oz.id === id);
+          if (!origZ) return z;
+
+          if (type === 'zone') {
+            return { ...z, offsetX: (origZ.offsetX || 0) + dx, offsetY: (origZ.offsetY || 0) + dy };
+          } else if (type === 'handle') {
+            const newPoints = [...origZ.points];
+            newPoints[pointIdx] = { x: origZ.points[pointIdx].x + dx, y: origZ.points[pointIdx].y + dy };
+            return { ...z, points: newPoints };
+          }
+          return z;
+        }));
+      };
+
+      const handlePointerUp = (e) => {
+        dragRef.current = { type: null, id: null, pointIdx: null, startX: 0, startY: 0, initialZones: [] };
+      };
+
+      const handleDoubleClick = () => {
+        if (isDrawing && drawMode === 'polygon' && draftPoints.length >= 3) {
+          finishDrawing();
+        }
+      };
+
+      const startDrawMode = (mode, msg) => {
+        setIsDrawing(true);
+        setDrawMode(mode);
+        setDraftPoints([]);
+        setSelectedId(null);
+        setDraggingCompType(null);
+        showToast(msg);
+        setMobileSubTab('canvas');
+      };
+
+      const finishDrawing = (pts = draftPoints) => {
+        if (pts.length < 2) return;
+        const newId = `draw_${Date.now()}`;
+        const newZone = {
+          id: newId, 
+          name: drawMode === 'polygon' ? `自訂多邊形` : drawMode === 'rect' ? `自訂矩形` : `自訂圓形`,
+          shape: drawMode, color: "#fef08a", noFill: false, offsetX: 0, offsetY: 0, rotation: 0,
+          points: pts
+        };
+
+        if (drawMode === 'rect') {
+          newZone.points = [{ x: Math.min(pts[0].x, pts[1].x), y: Math.min(pts[0].y, pts[1].y) }];
+          newZone.gridW = Math.max(1, Math.round(Math.abs(pts[1].x - pts[0].x) / GRID_SIZE));
+          newZone.gridH = Math.max(1, Math.round(Math.abs(pts[1].y - pts[0].y) / GRID_SIZE));
+        } else if (drawMode === 'circle') {
+          newZone.points = [pts[0]];
+          const rPx = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          const cells = Math.max(1, Math.round((rPx * 2) / GRID_SIZE));
+          newZone.gridW = cells; newZone.gridH = cells;
+        }
+
+        setZones([...zones, newZone]);
+        setSelectedId(newId);
+        cancelDrawing();
+      };
+
+      const cancelDrawing = () => { setIsDrawing(false); setDrawMode(null); setDraftPoints([]); };
+
+      const updateSelectedZone = (updates) => {
+        if (!selectedId) return;
+        setZones(zones.map(z => z.id === selectedId ? { ...z, ...updates } : z));
+      };
+
+      const deleteZone = (id) => {
+        setZones(zones.filter(z => z.id !== id));
+        if (selectedId === id) setSelectedId(null);
+        showToast("元件已刪除");
+      };
+
+      const duplicateZone = () => {
+        if (!selectedId) return;
+        const target = zones.find(z => z.id === selectedId);
+        if (target) {
+          const newId = `zone_${Date.now()}`;
+          setZones([...zones, { ...target, id: newId, name: `${target.name} (複製)`, offsetX: target.offsetX + 40, offsetY: target.offsetY + 40 }]);
+          setSelectedId(newId);
+          showToast("元件複製成功");
+        }
+      };
+
+      // 層級調整控制核心邏輯
+      const reorderZone = (action) => {
+        if (!selectedId) return;
+        const idx = zones.findIndex(z => z.id === selectedId);
+        if (idx === -1) return;
+        const newZones = [...zones];
+        const [target] = newZones.splice(idx, 1);
+
+        if (action === 'top') newZones.push(target);
+        else if (action === 'bottom') newZones.unshift(target);
+        else if (action === 'up' && idx < zones.length - 1) newZones.splice(idx + 1, 0, target);
+        else if (action === 'down' && idx > 0) newZones.splice(idx - 1, 0, target);
+        else return;
+
+        setZones(newZones);
+        showToast(`層級已調整`);
+      };
+
+      const exportImage = (type) => {
+        const svg = svgRef.current;
+        if (!svg) return;
+        
+        const svgString = new XMLSerializer().serializeToString(svg);
+        let modifiedSvgStr = svgString;
+        
+        if (!modifiedSvgStr.includes('xmlns=')) {
+          modifiedSvgStr = modifiedSvgStr.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        const blob = new Blob([modifiedSvgStr], {type: "image/svg+xml;charset=utf-8"});
+        const url = URL.createObjectURL(blob);
+        
+        if (type === 'svg') {
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `平面圖_${canvasSize.w}x${canvasSize.h}_${Date.now()}.svg`;
+          link.click();
+          showToast("SVG 匯出成功");
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } else {
+          showToast("高清 PNG 產生中...");
+          const img = new Image();
+          img.onload = () => {
+            const cvs = document.createElement('canvas');
+            cvs.width = canvasSize.w; 
+            cvs.height = canvasSize.h;
+            const ctx = cvs.getContext('2d');
+            
+            ctx.fillStyle = isDark ? '#09090b' : '#ffffff';
+            ctx.fillRect(0, 0, canvasSize.w, canvasSize.h);
+            ctx.drawImage(img, 0, 0);
+            
+            const link = document.createElement("a");
+            link.href = cvs.toDataURL('image/png', 1.0);
+            link.download = `平面圖_${canvasSize.w}x${canvasSize.h}_${Date.now()}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+          };
+          img.src = url;
+        }
+      };
+
+      const selectedZone = zones.find(z => z.id === selectedId);
 
       return (
-        <div className="h-full flex flex-col animate-in fade-in transition-colors">
-          <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex flex-col sm:flex-row justify-between sm:items-center gap-3 shrink-0">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Icon name="map" className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> 平面圖繪製與自訂編輯</h2>
-            <div className="flex gap-2 sm:gap-3">
-              <button onClick={clearCanvas} className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2A2B30] px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-200 dark:border-slate-700">
-                <Icon name="rotateCcw" /> 重設畫布
-              </button>
-              <button onClick={() => { const link = document.createElement('a'); link.download = 'floor_plan.png'; link.href = canvasRef.current.toDataURL(); link.click(); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
-                <Icon name="download" /> 匯出圖面
-              </button>
+        <div className="h-full flex flex-col animate-in fade-in transition-colors w-full overflow-hidden">
+          
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#202024] flex justify-between items-center shrink-0 z-20">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Icon name="map" className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> 平面圖繪製與編輯
+            </h2>
+            <div className="flex gap-2">
+              <button onClick={() => { if(confirm("確定重設清空畫布嗎？")) { setZones([]); setSelectedId(null); cancelDrawing(); setScale(1); } }} className="px-3 py-1.5 text-xs font-bold bg-slate-100 dark:bg-[#2A2B30] text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 transition hidden sm:flex items-center gap-1.5"><Icon name="refresh" />重設</button>
+              
+              <div className="relative group">
+                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm transition"><Icon name="download" /> 匯出圖面</button>
+                <div className="absolute right-0 mt-1 w-56 bg-white dark:bg-[#202024] border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl hidden group-hover:block z-50 overflow-hidden">
+                  <button onClick={()=>exportImage('png')} className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#2A2B30]">匯出高清 PNG ({canvasSize.w}x{canvasSize.h})</button>
+                  <button onClick={()=>exportImage('svg')} className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#2A2B30]">匯出高解析向量 SVG</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="lg:hidden bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-4 py-2 flex gap-1 shrink-0">
-            <button onClick={() => setMobileSubTab('library')} className={`flex-1 py-2 rounded-md text-xs font-bold text-center border transition-all ${mobileSubTab === 'library' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : 'border-transparent text-slate-500 dark:text-slate-400'}`}>元件圖庫</button>
-            <button onClick={() => setMobileSubTab('canvas')} className={`flex-1 py-2 rounded-md text-xs font-bold text-center border transition-all ${mobileSubTab === 'canvas' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : 'border-transparent text-slate-500 dark:text-slate-400'}`}>編輯畫布</button>
-            <button onClick={() => setMobileSubTab('settings')} className={`flex-1 py-2 rounded-md text-xs font-bold text-center border transition-all ${mobileSubTab === 'settings' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : 'border-transparent text-slate-500 dark:text-slate-400'}`}>屬性圖層</button>
+          {/* RWD 雙分頁 */}
+          <div className="lg:hidden bg-white dark:bg-[#202024] border-b border-slate-200 dark:border-slate-800 px-3 py-2 flex gap-1 shrink-0 z-10 overflow-x-auto">
+            {['library', 'canvas', 'settings'].map(t => (
+              <button key={t} onClick={() => setMobileSubTab(t)} className={`whitespace-nowrap px-4 py-2 rounded-md text-xs font-bold transition-all ${mobileSubTab === t ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'text-slate-500'}`}>
+                {t === 'library' ? '元件圖庫' : t === 'canvas' ? '畫布視圖' : '屬性設定'}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-1 min-h-0 overflow-hidden">
-            <div className={`w-full lg:w-[260px] bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-10 ${mobileSubTab === 'library' ? 'flex' : 'hidden lg:flex'}`}>
+          {/* 大框架工作區 */}
+          <div className="flex flex-1 min-h-0 overflow-hidden relative w-full">
+            
+            {/* 左側：圖庫與繪圖工具 */}
+            <div className={`w-full lg:w-72 bg-white dark:bg-[#202024] border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 z-20 ${mobileSubTab === 'library' ? 'flex' : 'hidden lg:flex'}`}>
               <div className="flex border-b border-slate-200 dark:border-slate-800">
-                <button onClick={() => setLeftTab('library')} className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1 border-b-2 transition-colors ${leftTab === 'library' ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400'}`}><Icon name="layoutGrid" /> 活動元件</button>
-                <button onClick={() => setLeftTab('custom')} className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1 border-b-2 transition-colors ${leftTab === 'custom' ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400'}`}><Icon name="penTool" /> 自訂繪圖</button>
+                <button onClick={() => setLeftTab('library')} className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 ${leftTab === 'library' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500'}`}><Icon name="layoutGrid" /> 活動元件</button>
+                <button onClick={() => setLeftTab('custom')} className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 ${leftTab === 'custom' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500'}`}><Icon name="penTool" /> 自訂繪圖</button>
               </div>
+
               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {leftTab === 'library' ? (
                   <div className="space-y-6">
-                    {libraryCategories.map(cat => (
-                      <div key={cat.name}>
-                        <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">{cat.name}</h3>
+                    {['會議論壇', '市集展攤', '戶外與安全'].map(cat => (
+                      <div key={cat}>
+                        <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">{cat}</h3>
                         <div className="grid grid-cols-2 gap-2">
-                          {cat.items.map(libItem => (
-                            <button key={libItem.label} onClick={() => addLibraryItem(libItem)} className="flex flex-col items-center justify-center p-3 bg-white dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-400 dark:hover:border-indigo-500 group transition-colors">
-                              <div className="group-hover:scale-110 transition-transform">{libItem.icon}</div>
-                              <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-1">{libItem.label}</span>
+                          {Object.entries(componentSpecs).filter(([k, v]) => v.category === cat).map(([k, spec]) => (
+                            <button 
+                              key={k} 
+                              onClick={() => { setDraggingCompType(k); showToast(`選擇了 ${spec.name}，請點擊畫布放置`); setMobileSubTab('canvas'); }}
+                              className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition ${draggingCompType === k ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#15151A] hover:border-indigo-300'}`}
+                            >
+                              <span className="text-xl">{spec.icon}</span>
+                              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mt-1">{spec.name}</span>
                             </button>
                           ))}
                         </div>
@@ -373,122 +535,264 @@
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/30">
-                      <h4 className="font-bold text-indigo-800 dark:text-indigo-300 text-sm mb-2 flex items-center gap-2"><Icon name="edit3" /> 繪製不規則邊界</h4>
-                      <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80 mb-3 leading-relaxed">點擊畫布定點，雙擊滑鼠完成閉合。</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => setMode('select')} className={`flex-1 py-1.5 rounded-md text-xs font-bold border transition-all ${mode === 'select' ? 'bg-white dark:bg-[#202024] border-indigo-300 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202024]'}`}>選取模式</button>
-                        <button onClick={() => { setMode('draw_polygon'); setSelectedId(null); }} className={`flex-1 py-1.5 rounded-md text-xs font-bold border transition-all ${mode === 'draw_polygon' ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-[#15151A] text-slate-600 dark:text-slate-300'}`}>開始繪製</button>
+                  <div className="space-y-3">
+                    <button onClick={() => startDrawMode('polygon', '多邊形描邊：點擊多點形成外框')} className={`w-full p-3 rounded-xl border flex items-center gap-2 text-sm font-bold ${drawMode==='polygon'?'bg-indigo-600 text-white border-indigo-600':'bg-white dark:bg-[#15151A] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}>📐 多邊形描邊</button>
+                    <button onClick={() => startDrawMode('rect', '自訂矩形：點選起點與對角點')} className={`w-full p-3 rounded-xl border flex items-center gap-2 text-sm font-bold ${drawMode==='rect'?'bg-indigo-600 text-white border-indigo-600':'bg-white dark:bg-[#15151A] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}>🟩 自訂矩形</button>
+                    <button onClick={() => startDrawMode('circle', '自訂圓形：點選圓心與邊界')} className={`w-full p-3 rounded-xl border flex items-center gap-2 text-sm font-bold ${drawMode==='circle'?'bg-indigo-600 text-white border-indigo-600':'bg-white dark:bg-[#15151A] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'}`}>⭕ 自訂圓形</button>
+                    
+                    {isDrawing && (
+                      <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2 animate-in slide-in-from-top">
+                        <button onClick={() => finishDrawing()} disabled={draftPoints.length < (drawMode==='polygon'?3:2)} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-lg disabled:opacity-50">確認完成圖形</button>
+                        <button onClick={cancelDrawing} className="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-lg">取消繪製</button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className={`flex-1 relative items-center justify-center p-4 bg-[#F6F8F9] dark:bg-[#15151A] overflow-auto ${mobileSubTab === 'canvas' ? 'flex' : 'hidden lg:flex'}`}>
-              {mode === 'draw_polygon' && (<div className="absolute top-6 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md z-10 pointer-events-none">正在繪製多邊形：點擊定點，雙擊閉合</div>)}
-              <div className="relative shadow-md border border-slate-200 dark:border-slate-800 bg-white">
-                <canvas 
-                  ref={canvasRef}
-                  onMouseDown={(e) => handleCanvasStart(getMousePos(canvasRef.current, e))}
-                  onMouseMove={(e) => handleCanvasMove(getMousePos(canvasRef.current, e))}
-                  onMouseUp={handleCanvasEnd} onMouseLeave={handleCanvasEnd} onDoubleClick={handleDoubleClick}
-                  onTouchStart={(e) => { e.preventDefault(); handleCanvasStart(getTouchPos(canvasRef.current, e)); }}
-                  onTouchMove={(e) => { e.preventDefault(); handleCanvasMove(getTouchPos(canvasRef.current, e)); }}
-                  onTouchEnd={(e) => { e.preventDefault(); handleCanvasEnd(); }}
-                  className={`${mode === 'draw_polygon' ? 'cursor-crosshair' : (draggingId ? 'cursor-grabbing' : 'cursor-pointer')} max-w-full max-h-full object-contain block`}
-                ></canvas>
+            {/* 中間：畫布容器 */}
+            <div className={`flex-1 min-w-0 relative bg-slate-100 dark:bg-black/60 overflow-auto custom-scrollbar ${mobileSubTab === 'canvas' ? 'block' : 'hidden lg:block'}`}>
+              
+              <div className="sticky top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none w-max">
+                {(isDrawing || draggingCompType) && (
+                  <div className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-lg text-xs font-bold animate-pulse pointer-events-auto">
+                    {isDrawing ? `正在繪製... 點擊畫布定點` : `請在畫布上點選要放置的位置`}
+                  </div>
+                )}
+              </div>
+
+              {/* 放大縮小面板 */}
+              <div className="fixed bottom-6 right-6 lg:absolute lg:bottom-6 lg:right-6 z-30 flex bg-white dark:bg-[#202024] border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden">
+                <button onClick={() => setScale(s => Math.max(0.1, s - 0.1))} className="px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">-</button>
+                <button onClick={() => setScale(1)} className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#2A2B30] flex items-center justify-center border-x border-slate-200 dark:border-slate-700 min-w-[60px]">
+                  {Math.round(scale * 100)}%
+                </button>
+                <button onClick={() => setScale(s => Math.min(5, s + 0.1))} className="px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold">+</button>
+              </div>
+
+              {/* 畫布實體渲染 */}
+              <div className="min-h-full min-w-full grid place-items-center p-8">
+                <div 
+                  style={{ width: `${canvasSize.w * scale}px`, height: `${canvasSize.h * scale}px` }} 
+                  className="relative bg-white dark:bg-[#09090B] border border-slate-200 dark:border-slate-800 shadow-md shrink-0 transition-all duration-150 origin-top-left"
+                >
+                  <svg 
+                    ref={svgRef} 
+                    viewBox={`0 0 ${canvasSize.w} ${canvasSize.h}`}
+                    className="w-full h-full"
+                    onPointerDown={handleSvgPointerDown} 
+                    onPointerMove={handlePointerMove} 
+                    onPointerUp={handlePointerUp} 
+                    onPointerLeave={handlePointerUp}
+                    onDoubleClick={handleDoubleClick}
+                  >
+                    <defs>
+                      <pattern id="gridPattern" width={GRID_SIZE} height={GRID_SIZE} patternUnits="userSpaceOnUse">
+                        <rect width={GRID_SIZE} height={GRID_SIZE} fill="none" stroke={isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} strokeWidth="1" />
+                      </pattern>
+                      <pattern id="stripes" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                        <line x1="0" y1="0" x2="0" y2="10" stroke="#ef4444" strokeWidth="2" opacity="0.6"/>
+                      </pattern>
+                    </defs>
+                    
+                    <rect width="100%" height="100%" fill={isDark ? '#09090b' : '#ffffff'} data-bg="true" />
+                    <rect width="100%" height="100%" fill="url(#gridPattern)" />
+
+                    {zones.map(zone => {
+                      const theme = colorThemes[zone.color] || { stroke: "#4f46e5", darkStroke: "#4f46e5" };
+                      const strokeColor = isDark ? theme.darkStroke : theme.stroke;
+                      const fillAttr = zone.noFill ? "url(#stripes)" : zone.color;
+                      const isSelected = selectedId === zone.id;
+
+                      let center = { x: 0, y: 0 };
+                      if (zone.shape === 'rect' && zone.points.length >= 1) {
+                        center = { x: zone.points[0].x + (zone.gridW * GRID_SIZE)/2, y: zone.points[0].y + (zone.gridH * GRID_SIZE)/2 };
+                      } else if (zone.shape === 'circle') {
+                        center = zone.points[0];
+                      } else {
+                        center = getCentroid(zone.points);
+                      }
+
+                      const transform = `translate(${zone.offsetX || 0}, ${zone.offsetY || 0}) rotate(${zone.rotation || 0} ${center.x} ${center.y})`;
+
+                      return (
+                        <g key={zone.id} transform={transform} data-id={zone.id}>
+                          {zone.shape === 'rect' && zone.points.length > 0 && (
+                            <rect 
+                              x={zone.points[0].x} y={zone.points[0].y} width={zone.gridW * GRID_SIZE} height={zone.gridH * GRID_SIZE} rx="6"
+                              fill={fillAttr} fillOpacity={isSelected ? 0.8 : 0.4}
+                              stroke={isSelected ? '#4f46e5' : strokeColor} strokeWidth={isSelected ? 4 : 2}
+                              strokeDasharray={zone.noFill && isSelected ? "6 4" : "none"}
+                              className="zone-shape"
+                              onPointerDown={(e) => handlePointerDown(e, 'zone', zone.id)}
+                            />
+                          )}
+                          {zone.shape === 'circle' && zone.points.length > 0 && (
+                            <circle 
+                              cx={zone.points[0].x} cy={zone.points[0].y} r={(Math.max(zone.gridW, zone.gridH) * GRID_SIZE) / 2}
+                              fill={fillAttr} fillOpacity={isSelected ? 0.8 : 0.4}
+                              stroke={isSelected ? '#4f46e5' : strokeColor} strokeWidth={isSelected ? 4 : 2}
+                              className="zone-shape"
+                              onPointerDown={(e) => handlePointerDown(e, 'zone', zone.id)}
+                            />
+                          )}
+                          {zone.shape === 'polygon' && zone.points.length > 2 && (
+                            <polygon 
+                              points={zone.points.map(p => `${p.x},${p.y}`).join(" ")}
+                              fill={fillAttr} fillOpacity={isSelected ? 0.8 : 0.4}
+                              stroke={isSelected ? '#4f46e5' : strokeColor} strokeWidth={isSelected ? 4 : 2}
+                              className="zone-shape"
+                              onPointerDown={(e) => handlePointerDown(e, 'zone', zone.id)}
+                            />
+                          )}
+                          
+                          <rect x={center.x - 45} y={center.y - 12} width="90" height="24" rx="12" fill={isDark ? '#1e293b' : '#ffffff'} stroke={strokeColor} strokeWidth="1" opacity="0.9" style={{pointerEvents:'none'}} />
+                          <text x={center.x} y={center.y + 4} textAnchor="middle" fill={isDark ? '#f8fafc' : '#0f172a'} fontSize="11" fontWeight="bold" style={{pointerEvents:'none'}}>{zone.name}</text>
+
+                          {isSelected && zone.shape === 'polygon' && zone.points.map((pt, idx) => (
+                            <circle 
+                              key={idx} cx={pt.x} cy={pt.y} r="6" fill="#4f46e5" stroke="#ffffff" strokeWidth="2" className="point-handle"
+                              onPointerDown={(e) => handlePointerDown(e, 'handle', zone.id, idx)}
+                            />
+                          ))}
+                        </g>
+                      );
+                    })}
+
+                    {isDrawing && draftPoints.length > 0 && (
+                      <g>
+                        <polyline points={[...draftPoints, mousePos].map(p => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#4f46e5" strokeWidth="2" strokeDasharray="6 6" />
+                        {draftPoints.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill="#4f46e5" />)}
+                      </g>
+                    )}
+                  </svg>
+                </div>
               </div>
             </div>
 
-            <div className={`w-full lg:w-[280px] bg-white dark:bg-[#202024] border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 z-10 overflow-y-auto custom-scrollbar ${mobileSubTab === 'settings' ? 'flex' : 'hidden lg:flex'}`}>
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800/50">
-                <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2"><Icon name="settings" className="text-slate-400" /> 元件屬性設定</h3>
-              </div>
-              {selectedItem ? (
-                <div className="p-5 space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">自訂名稱</label>
-                    <input type="text" value={selectedItem.label} onChange={(e) => updateItem(selectedItem.id, 'label', e.target.value)} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm outline-none text-slate-900 dark:text-slate-100" />
-                  </div>
-                  {selectedItem.type === 'rect' && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 block mb-1">寬度(W)</span>
-                          <input type="number" value={selectedItem.w} onChange={(e) => updateItem(selectedItem.id, 'w', Number(e.target.value))} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm text-center outline-none text-slate-900 dark:text-slate-100" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 block mb-1">高度(H)</span>
-                          <input type="number" value={selectedItem.h} onChange={(e) => updateItem(selectedItem.id, 'h', Number(e.target.value))} className="w-full bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-sm text-center outline-none text-slate-900 dark:text-slate-100" />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-xs font-bold text-slate-600 dark:text-slate-400">旋轉角度</label>
-                          <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{selectedItem.rotation || 0}°</span>
-                        </div>
-                        <input type="range" min="-180" max="180" step="5" value={selectedItem.rotation || 0} onChange={(e) => updateItem(selectedItem.id, 'rotation', Number(e.target.value))} className="w-full accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer appearance-none" />
-                      </div>
-                    </>
-                  )}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-3">視覺顏色</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['#fef3c7', '#fee2e2', '#e0f2fe', '#d1fae5', '#f3e8ff', '#f1f5f9'].map(c => (
-                        <button key={c} onClick={() => updateItem(selectedItem.id, 'color', c)} className={`w-7 h-7 rounded-md shadow-sm transition-transform ${selectedItem.color === c ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110' : 'border border-slate-200 dark:border-slate-700'}`} style={{ backgroundColor: c }} />
-                      ))}
-                      <button onClick={() => updateItem(selectedItem.id, 'color', 'transparent')} className={`w-7 h-7 rounded-md border-2 border-dashed border-slate-400 relative bg-transparent transition-transform ${selectedItem.color === 'transparent' ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#202024] scale-110' : ''}`}><div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-0.5 bg-red-400/80 rotate-45"></div></div></button>
+            {/* 右側：屬性設定與圖層清單 */}
+            <div className={`w-full lg:w-72 bg-white dark:bg-[#202024] border-l border-slate-200 dark:border-slate-800 flex-col shrink-0 z-20 overflow-y-auto custom-scrollbar ${mobileSubTab === 'settings' ? 'flex' : 'hidden lg:flex'}`}>
+              
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+                {/* 畫布底圖設定 */}
+                <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-800/60">
+                  <h2 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Icon name="layoutGrid" /> 畫布底圖設定</h2>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1">畫布寬度 (px)</label>
+                      <input type="number" min="100" value={canvasSize.w} onChange={e => setCanvasSize(prev => ({...prev, w: parseInt(e.target.value) || 100}))} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-slate-100" />
                     </div>
-                  </div>
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">圖層順序</label>
-                    <div className="grid grid-cols-4 gap-1">
-                      <button onClick={() => moveLayer(selectedItem.id, 'front')} className="flex flex-col items-center py-2 px-1 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">最頂</span></button>
-                      <button onClick={() => moveLayer(selectedItem.id, 'up')} className="flex flex-col items-center py-2 px-1 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">上移</span></button>
-                      <button onClick={() => moveLayer(selectedItem.id, 'down')} className="flex flex-col items-center py-2 px-1 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">下移</span></button>
-                      <button onClick={() => moveLayer(selectedItem.id, 'back')} className="flex flex-col items-center py-2 px-1 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800"><span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">最底</span></button>
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <div className="grid grid-cols-2 gap-3">
-                      <button onClick={() => duplicateItem(selectedItem.id)} className="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-[#15151A] border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800"><Icon name="copy" /> 複製</button>
-                      <button onClick={() => deleteItem(selectedItem.id)} className="flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800 rounded-lg text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40"><Icon name="trash2" /> 刪除</button>
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">圖層清單</label>
-                    <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-                      {reversedItems.map((item) => (
-                        <div key={item.id} onClick={() => setSelectedId(item.id)} className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer ${selectedId === item.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-700' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-transparent'}`}>
-                          <div className="flex items-center gap-2 truncate"><div className={`w-3.5 h-3.5 rounded-sm border ${item.color === 'transparent' ? 'border-dashed dark:border-slate-500' : 'border-slate-200 dark:border-slate-600'}`} style={{ backgroundColor: item.color === 'transparent' ? 'transparent' : item.color }}></div><span className="truncate">{item.label}</span></div>
-                        </div>
-                      ))}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1">畫布高度 (px)</label>
+                      <input type="number" min="100" value={canvasSize.h} onChange={e => setCanvasSize(prev => ({...prev, h: parseInt(e.target.value) || 100}))} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-slate-100" />
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-[#15151A] border border-slate-100 dark:border-slate-800 flex items-center justify-center mb-3"><Icon name="mousePointer2" className="text-slate-400 dark:text-slate-500" /></div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">請在畫布上點選元件</p>
-                  {items.length > 0 && (
-                    <div className="w-full text-left mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">圖層快速選擇</label>
-                      <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                        {reversedItems.map((item) => (
-                          <div key={item.id} onClick={() => setSelectedId(item.id)} className="flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            <span className="truncate">{item.label}</span>
-                          </div>
+
+                {/* 元件屬性 */}
+                <h2 className="font-bold text-xs text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5"><Icon name="settings" /> 元件屬性</h2>
+                
+                {selectedZone ? (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1">自訂名稱</label>
+                      <input type="text" value={selectedZone.name} onChange={e => updateSelectedZone({name: e.target.value})} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-slate-100" />
+                    </div>
+                    {selectedZone.shape !== 'polygon' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1">寬度 (格)</label>
+                          <input type="number" min="1" value={selectedZone.gridW} onChange={e => updateSelectedZone({gridW: Math.max(1, parseInt(e.target.value)||1)})} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold text-center outline-none text-slate-900 dark:text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1">高度 (格)</label>
+                          <input type="number" min="1" value={selectedZone.gridH} onChange={e => updateSelectedZone({gridH: Math.max(1, parseInt(e.target.value)||1)})} className="w-full bg-slate-50 dark:bg-[#15151A] border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs font-bold text-center outline-none text-slate-900 dark:text-slate-100" />
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                        <span>旋轉角度</span><span className="text-indigo-500">{selectedZone.rotation || 0}°</span>
+                      </div>
+                      <input type="range" min="0" max="360" value={selectedZone.rotation || 0} onChange={e => updateSelectedZone({rotation: parseInt(e.target.value)})} className="w-full accent-indigo-600 h-1" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5">視覺顏色分類</label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(colorThemes).filter(c=>c!=='transparent').map(c => (
+                          <button key={c} onClick={() => updateSelectedZone({color: c, noFill: false})} className={`w-6 h-6 rounded-md transition ${selectedZone.color === c && !selectedZone.noFill ? 'ring-2 ring-indigo-500 scale-110' : ''}`} style={{backgroundColor: c}}></button>
                         ))}
+                        <button onClick={() => updateSelectedZone({noFill: !selectedZone.noFill})} className={`no-fill-bg w-6 h-6 rounded-md border border-slate-400 transition ${selectedZone.noFill ? 'ring-2 ring-indigo-500 scale-110' : ''}`} title="無填色(網底)"></button>
                       </div>
                     </div>
-                  )}
+                    <div className="pt-2 grid grid-cols-2 gap-2">
+                      <button onClick={duplicateZone} className="py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-indigo-100"><Icon name="copy" /> 複製</button>
+                      <button onClick={() => deleteZone(selectedZone.id)} className="py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-100"><Icon name="trash2" /> 刪除</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 flex flex-col items-center justify-center text-slate-400 opacity-50 bg-slate-50 dark:bg-[#15151A] rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                    <Icon name="mousePointer" className="w-8 h-8 mb-2" />
+                    <span className="text-[11px] font-bold">點選畫布元件以編輯屬性</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 圖層清單（功能擴充區） */}
+              <div className="p-4 flex-1 flex flex-col min-h-0">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="font-bold text-xs text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><Icon name="layers" /> 圖層清單</h2>
+                  <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{zones.length}</span>
                 </div>
-              )}
+                
+                <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-1">
+                  {[...zones].reverse().map(z => {
+                    const isSelected = selectedId === z.id;
+                    return (
+                      <div 
+                        key={z.id} 
+                        onClick={() => setSelectedId(z.id)} 
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs font-bold transition ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                      >
+                        <div className="flex items-center gap-2 truncate mr-1">
+                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${z.noFill ? 'border border-red-500 bg-transparent' : ''}`} style={{backgroundColor: z.noFill ? 'transparent' : z.color}}></div>
+                          <span className="truncate">{z.name}</span>
+                        </div>
+                        
+                        {/* 擴充功能：當圖層被選取時，顯示精緻的層級調整快捷鍵 */}
+                        {isSelected && (
+                          <div className="flex items-center gap-0.5 shrink-0 bg-white dark:bg-[#202024] border border-slate-200 dark:border-slate-700 p-0.5 rounded-md shadow-sm" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => reorderZone('top')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="移至最頂">
+                              <Icon name="chevronsUp" className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => reorderZone('up')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="向上一層">
+                              <Icon name="arrowUp" className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => reorderZone('down')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="向下一層">
+                              <Icon name="arrowDown" className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => reorderZone('bottom')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="移至最底">
+                              <Icon name="chevronsDown" className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           </div>
+          
+          {/* Toast */}
+          {toastMsg && (
+            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/90 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl z-50 animate-in slide-in-from-bottom-2 fade-in">
+              {toastMsg}
+            </div>
+          )}
+
         </div>
       );
     }
@@ -505,7 +809,7 @@
       
       return (
         <AppLayout activePage="floorplan" theme={theme} toggleTheme={toggleTheme}>
-          <FloorPlanApp />
+          <FloorPlanApp theme={theme} />
         </AppLayout>
       );
     }
